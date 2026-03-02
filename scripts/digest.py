@@ -124,6 +124,17 @@ def run_digest():
     jsx = re.sub(r"\n?```$", "", jsx, flags=re.MULTILINE)
     jsx = jsx.strip()
 
+    # Extract only the JS/JSX code — strip any conversational preamble
+    match = re.search(r"(function\s+Digest\s*\()", jsx)
+    if match:
+        jsx = jsx[match.start():]
+
+    # Remove duplicate "export default Digest;" and "ReactDOM.render(...)"
+    # since the HTML shell already includes the ReactDOM.render call
+    jsx = re.sub(r"\bexport\s+default\s+Digest\s*;?", "", jsx)
+    jsx = re.sub(r"ReactDOM\.render\s*\(.*?\)\s*;?", "", jsx, flags=re.DOTALL)
+    jsx = jsx.strip()
+
     return jsx
 
 
