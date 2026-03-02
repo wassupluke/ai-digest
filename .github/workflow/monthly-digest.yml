@@ -1,0 +1,49 @@
+name: Monthly AI Digest
+
+on:
+  schedule:
+    - cron: '0 0 1 * *'   # Every Month
+  workflow_dispatch:        # Manual trigger (the "kick it off" button in GitHub UI)
+    inputs:
+      days:
+        description: 'Lookback window in days'
+        default: '30'
+      category:
+        description: 'cs.AI, cs.SE, or both'
+        default: 'both'
+
+permissions:
+  contents: write           # Needed to commit generated files
+
+jobs:
+  generate-digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install anthropic requests
+
+      - name: Run digest script
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DIGEST_DAYS: ${{ github.event.inputs.days || '7' }}
+          DIGEST_CATEGORY: ${{ github.event.inputs.category || 'both' }}
+        run: python scripts/digest.py
+
+      - name: Commit and push generated pages
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/
+          # Only commit if there's actually something new
+          git diff --cached --quiet || git commit -m "chore: weekly digest $(date +'%Y-%m-%d')"
+          git push
