@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Research Digest</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            surface: { DEFAULT: '#1a1a2e', light: '#16213e', card: '#0f3460' },
+            accent: { DEFAULT: '#e94560', light: '#ff6b6b' },
+            text: { DEFAULT: '#eaeaea', muted: '#a0a0b0' }
+          }
+        }
+      }
+    }
+  </script>
+  <script>
+    window.__DIGEST_DATA__ = __DIGEST_DATA_PLACEHOLDER__;
+  </script>
+</head>
+<body class="dark bg-surface text-text-DEFAULT min-h-screen">
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState } = React;
+const DATA = window.__DIGEST_DATA__;
+
+function Badge({ label, color }) {
+  const colors = {
+    'cs.AI': 'bg-blue-600',
+    'cs.SE': 'bg-green-600',
+    pass: 'bg-emerald-600',
+    flag: 'bg-amber-600',
+  };
+  return (
+    <span className={`${colors[label] || color || 'bg-gray-600'} text-xs font-semibold px-2 py-0.5 rounded-full`}>
+      {label}
+    </span>
+  );
+}
+
+function StepCard({ step, index }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border border-gray-700 rounded-lg mb-2 overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-light transition text-left"
+      >
+        <span className="flex items-center gap-2">
+          <span className="text-accent font-mono text-sm">#{index + 1}</span>
+          <span className="text-sm">{step.text}</span>
+        </span>
+        <span className="flex items-center gap-2">
+          {step.verdict && <Badge label={step.verdict} />}
+          <span className="text-text-muted text-xs">{open ? '▲' : '▼'}</span>
+        </span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-2">
+          {step.example && (
+            <pre className="bg-gray-900 rounded p-3 text-xs overflow-x-auto whitespace-pre-wrap">
+              <code>{step.example}</code>
+            </pre>
+          )}
+          {step.verdict_note && (
+            <p className="text-text-muted text-xs italic">{step.verdict_note}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PaperCard({ paper }) {
+  return (
+    <div className="bg-surface-light border border-gray-700 rounded-xl p-6 mb-4">
+      <div className="flex items-start justify-between gap-4 mb-3">
+        <div>
+          <a
+            href={paper.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-lg font-bold text-white hover:text-accent-light transition"
+          >
+            {paper.title}
+          </a>
+          <p className="text-text-muted text-xs mt-1">arXiv: {paper.id} · {paper.date}</p>
+        </div>
+        <div className="flex gap-2 flex-shrink-0">
+          <Badge label={paper.category} />
+          {paper.technique && <Badge label={paper.technique} color="bg-purple-600" />}
+        </div>
+      </div>
+      <p className="text-sm text-text-muted mb-2"><strong className="text-text-DEFAULT">TL;DR:</strong> {paper.tldr}</p>
+      <p className="text-sm mb-4">{paper.implication}</p>
+      {paper.steps && paper.steps.length > 0 && (
+        <div className="mb-2">
+          <h4 className="text-xs uppercase tracking-wider text-text-muted mb-2">Actionable Steps</h4>
+          {paper.steps.map((s, i) => <StepCard key={s.id || i} step={s} index={i} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GuidesTab({ papers }) {
+  return (
+    <div>
+      {papers.map((p, i) => <PaperCard key={p.id || i} paper={p} />)}
+      {papers.length === 0 && <p className="text-text-muted">No papers found for this period.</p>}
+    </div>
+  );
+}
+
+function FactCheckTab({ papers }) {
+  const allSteps = papers.flatMap(p =>
+    (p.steps || []).map(s => ({ ...s, paperTitle: p.title, paperId: p.id }))
+  );
+  const flagged = allSteps.filter(s => s.verdict === 'flag');
+  const passed = allSteps.filter(s => s.verdict === 'pass');
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-sm uppercase tracking-wider text-text-muted mb-3">
+          Summary: {passed.length} passed · {flagged.length} flagged · {allSteps.length} total
+        </h3>
+      </div>
+      {flagged.length > 0 && (
+        <div>
+          <h3 className="text-amber-400 font-semibold mb-2">Flagged Steps</h3>
+          {flagged.map((s, i) => (
+            <div key={i} className="bg-surface-light border border-amber-700 rounded-lg p-4 mb-2">
+              <p className="text-sm font-medium">{s.paperTitle}</p>
+              <p className="text-sm text-text-muted mt-1">{s.text}</p>
+              {s.verdict_note && <p className="text-xs text-amber-300 mt-1">{s.verdict_note}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+      {passed.length > 0 && (
+        <div>
+          <h3 className="text-emerald-400 font-semibold mb-2">Passed Steps</h3>
+          {passed.map((s, i) => (
+            <div key={i} className="bg-surface-light border border-gray-700 rounded-lg p-3 mb-2">
+              <p className="text-sm">{s.text}</p>
+              <p className="text-xs text-text-muted mt-1">from: {s.paperTitle}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DocsIndexTab({ papers }) {
+  const allDocs = papers.flatMap(p =>
+    (p.docs || []).map(d => ({ ...d, paperTitle: p.title }))
+  );
+  const unique = [...new Map(allDocs.map(d => [d.url, d])).values()];
+  return (
+    <div>
+      {unique.length === 0 && <p className="text-text-muted">No documentation links found.</p>}
+      <div className="space-y-2">
+        {unique.map((d, i) => (
+          <div key={i} className="flex items-center justify-between bg-surface-light border border-gray-700 rounded-lg p-3">
+            <div>
+              <a
+                href={d.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-accent-light hover:underline"
+              >
+                {d.title}
+              </a>
+              <p className="text-xs text-text-muted">referenced by: {d.paperTitle}</p>
+            </div>
+            <span className="text-text-muted text-xs">↗</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DigestApp() {
+  const [tab, setTab] = useState('guides');
+  const { papers, date, issueNumber } = DATA;
+  const tabs = [
+    { id: 'guides', label: 'Guides' },
+    { id: 'factcheck', label: 'Fact-Check' },
+    { id: 'docs', label: 'Docs Index' },
+  ];
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold text-white">AI Research Digest</h1>
+        <p className="text-text-muted mt-1">
+          Issue #{issueNumber} · {date} · {papers.length} papers
+        </p>
+      </header>
+      <nav className="flex gap-1 mb-6 border-b border-gray-700">
+        {tabs.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`px-4 py-2 text-sm font-medium transition border-b-2 -mb-px ${
+              tab === t.id
+                ? 'border-accent text-white'
+                : 'border-transparent text-text-muted hover:text-white'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </nav>
+      <main>
+        {tab === 'guides' && <GuidesTab papers={papers} />}
+        {tab === 'factcheck' && <FactCheckTab papers={papers} />}
+        {tab === 'docs' && <DocsIndexTab papers={papers} />}
+      </main>
+      <footer className="mt-12 pt-4 border-t border-gray-700 text-center text-text-muted text-xs">
+        Generated by AI-Digest · Powered by Claude
+      </footer>
+    </div>
+  );
+}
+
+ReactDOM.render(<DigestApp />, document.getElementById('root'));
+  </script>
+</body>
+</html>
