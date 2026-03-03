@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Research Digest</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            surface: { DEFAULT: '#1a1a2e', light: '#16213e', card: '#0f3460' },
+            accent: { DEFAULT: '#e94560', light: '#ff6b6b' },
+            text: { DEFAULT: '#eaeaea', muted: '#a0a0b0' }
+          }
+        }
+      }
+    }
+  </script>
+  <script>
+    window.__DIGEST_DATA__ = {"papers": [{"id": "2602.24288", "date": "Feb 2026", "title": "DARE-bench: Evaluating Modeling and Instruction Fidelity of LLMs in Data Science", "url": "https://arxiv.org/abs/2602.24288", "category": "cs.AI", "technique": "Process-aware Data Science Evaluation", "tldr": "Introduces DARE-bench, a benchmark with 6,300 Kaggle-derived tasks that evaluates LLM agent performance on data science workflows with verifiable ground truth. Fine-tuning on DARE-bench tasks improves model accuracy by up to 8x.", "implication": "Claude users working on data science tasks can expect improved evaluation methods for their agent workflows. The benchmark's emphasis on instruction fidelity and reproducible evaluation provides a framework for systematically improving data science automation.", "steps": [{"id": "s1", "text": "Structure data science prompts to explicitly control randomness and provide deterministic outcomes", "example": "```python\n# Set explicit seeds for reproducibility\nnp.random.seed(42)\nrandom.seed(42)\n\n# Be specific about data splitting\nfrom sklearn.model_selection import train_test_split\nX_train, X_test, y_train, y_test = train_test_split(\n    X, y, test_size=0.2, random_state=42, stratify=y\n)\n```", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "Break down complex data science workflows into verifiable sub-tasks with concrete success metrics", "example": "```markdown\n## Task: Customer Churn Prediction\n\n1. Data preprocessing (target: no missing values, balanced classes)\n2. Feature engineering (target: create 3 new features from existing data)\n3. Model training (target: achieve >80% accuracy on validation set)\n4. Generate predictions on test set (format: CSV with customer_id, prediction columns)\n```", "verdict": "pass", "verdict_note": ""}, {"id": "s3", "text": "Use sandbox environments to execute and validate data science code before production deployment", "example": "```python\n# Claude tool_use with code execution\nresult = claude.execute_code(\n    code=\"\"\"\n    import pandas as pd\n    df = pd.read_csv('data.csv')\n    model.fit(X_train, y_train)\n    predictions = model.predict(X_test)\n    \"\"\",\n    verify_outputs=True,\n    save_artifacts=['model.pkl', 'predictions.csv']\n)\n```", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Tool Use", "url": "https://docs.anthropic.com/en/docs/tool-use"}, {"title": "Code Execution", "url": "https://docs.anthropic.com/en/docs/about-claude/use-case-guides/coding"}]}, {"id": "2602.22790", "date": "Feb 2026", "title": "Natural Language Declarative Prompting (NLD-P): A Modular Governance Method for Prompt Design Under Model Drift", "url": "https://arxiv.org/abs/2602.22790", "category": "cs.CL", "technique": "Modular Prompt Architecture", "tldr": "Formalizes NLD-P as a declarative governance method that separates prompts into modular components: provenance, constraints, task content, and evaluation. This structural approach maintains prompt stability as models evolve.", "implication": "Claude users can make their prompts more resilient to model updates by adopting modular prompt design. This is especially valuable for production systems where prompt behavior needs to remain consistent across Claude version updates.", "steps": [{"id": "s1", "text": "Structure prompts with explicit separation of concerns using NLD-P components", "example": "```markdown\n## PROVENANCE\nRole: Senior Data Analyst\nContext: Q4 financial reporting for executive dashboard\n\n## CONSTRAINTS  \n- Use only data from approved sources\n- Include confidence intervals for all estimates\n- Flag any data quality issues\n\n## TASK\nAnalyze revenue trends and create executive summary\n\n## EVALUATION\nOutput must include: trend direction, key metrics, actionable insights\n```", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "Make governance layers explicit and independently revisable to handle model drift", "example": "```python\n# Separate constraint logic from task execution\nCONSTRAINTS = {\n    \"output_format\": \"JSON with schema validation\",\n    \"error_handling\": \"Return null for invalid inputs\",\n    \"validation_rules\": [\"check_data_types\", \"verify_ranges\"]\n}\n\nTASK_CONTENT = \"Process customer feedback data\"\n\nprompt = f\"\"\"\nCONSTRAINTS: {CONSTRAINTS}\nTASK: {TASK_CONTENT}\n\"\"\"\n```", "verdict": "pass", "verdict_note": ""}, {"id": "s3", "text": "Version control prompt components to track changes and rollback if needed", "example": "```python\n# prompt_v1.2.py\nclass PromptComponents:\n    VERSION = \"1.2\"\n    PROVENANCE = \"Data processing agent v1.2\"\n    CONSTRAINTS = {\n        \"max_tokens\": 4000,\n        \"temperature\": 0.1,\n        \"format\": \"structured_output\"\n    }\n    \n    def build_prompt(self, task_content):\n        return f\"\"\"\n        ## PROVENANCE\\n{self.PROVENANCE}\\n\n        ## CONSTRAINTS\\n{self.CONSTRAINTS}\\n\n        ## TASK\\n{task_content}\n        \"\"\"\n```", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Prompt Engineering", "url": "https://docs.anthropic.com/en/docs/prompt-engineering"}, {"title": "System Prompts", "url": "https://docs.anthropic.com/en/docs/system-prompts"}]}, {"id": "2602.22402", "date": "Feb 2026", "title": "Contextual Memory Virtualisation: DAG-Based State Management and Structurally Lossless Trimming for LLM Agents", "url": "https://arxiv.org/abs/2602.22402", "category": "cs.SE", "technique": "Context Window Management", "tldr": "Proposes CMV system that models LLM session history as a DAG with snapshot, branch, and trim operations. Achieves 20-86% token reduction while preserving all user messages and responses through structurally lossless trimming.", "implication": "Claude users can manage longer conversations and complex projects more efficiently by implementing context management strategies that preserve important state while reducing token costs. This is particularly valuable for extended coding sessions or multi-turn analysis.", "steps": [{"id": "s1", "text": "Implement conversation snapshots at key decision points to enable branching and rollback", "example": "```python\nclass ConversationManager:\n    def __init__(self):\n        self.snapshots = {}\n        self.current_branch = \"main\"\n        \n    def create_snapshot(self, name, conversation_state):\n        self.snapshots[name] = {\n            \"messages\": conversation_state.copy(),\n            \"timestamp\": datetime.now(),\n            \"parent\": self.current_branch\n        }\n        \n    def branch_from_snapshot(self, snapshot_name, new_branch):\n        self.current_branch = new_branch\n        return self.snapshots[snapshot_name][\"messages\"]\n```", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "Strip mechanical bloat like tool outputs and base64 images while preserving semantic content", "example": "```python\ndef trim_context(messages):\n    trimmed = []\n    for msg in messages:\n        if msg.get('role') in ['user', 'assistant']:\n            # Keep all user/assistant content verbatim\n            trimmed.append(msg)\n        elif msg.get('role') == 'tool':\n            # Replace large outputs with summaries\n            if len(msg['content']) > 1000:\n                msg['content'] = f\"[TRIMMED: {len(msg['content'])} chars of tool output]\"\n            trimmed.append(msg)\n    return trimmed\n```", "verdict": "pass", "verdict_note": ""}, {"id": "s3", "text": "Use prompt caching for repeated context patterns to reduce costs in long sessions", "example": "```python\n# With Claude API prompt caching\nresponse = client.messages.create(\n    model=\"claude-3-5-sonnet-20241022\",\n    max_tokens=1024,\n    messages=[\n        {\n            \"role\": \"user\", \n            \"content\": [\n                {\n                    \"type\": \"text\",\n                    \"text\": \"Analyze this codebase:\",\n                    \"cache_control\": {\"type\": \"ephemeral\"}\n                }\n            ]\n        }\n    ]\n)\n```", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Prompt Caching", "url": "https://docs.anthropic.com/en/docs/prompt-caching"}, {"title": "Managing Long Conversations", "url": "https://docs.anthropic.com/en/docs/about-claude/use-case-guides/long-form-content"}]}, {"id": "2602.22124", "date": "Feb 2026", "title": "SWE-Protégé: Learning to Selectively Collaborate With an Expert Unlocks Small Language Models as Software Engineering Agents", "url": "https://arxiv.org/abs/2602.22124", "category": "cs.SE", "technique": "Expert-Protégé Collaboration", "tldr": "Framework where a small language model acts as primary agent but learns to selectively request guidance from a large expert model. Achieves 42.4% on SWE-bench with only ~4 expert calls per task, improving cost efficiency by 10x.", "implication": "Claude users can implement cost-effective agent architectures by using smaller models for routine tasks while reserving Claude's advanced capabilities for complex reasoning. This pattern is ideal for applications with budget constraints or high-volume processing needs.", "steps": [{"id": "s1", "text": "Design agent workflows that recognize when they need expert assistance and explicitly request help", "example": "```python\nclass ProtégéAgent:\n    def __init__(self, small_model, expert_model):\n        self.small_model = small_model\n        self.expert_model = expert_model\n        self.stall_count = 0\n        \n    def should_request_expert(self, current_state):\n        # Request help if stuck in loops or making no progress\n        if self.stall_count > 3 or current_state.get('error_count', 0) > 2:\n            return True\n        return False\n        \n    def request_expert_guidance(self, problem, context):\n        guidance = self.expert_model.generate(\n            f\"As an expert, provide guidance for: {problem}\\nContext: {context}\"\n        )\n        return guidance\n```", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "Implement feedback loops where the agent reports back to expert after following guidance", "example": "```python\ndef collaborative_problem_solving(self, task):\n    # Primary agent attempts task\n    result = self.small_model.solve(task)\n    \n    if self.should_request_expert(result):\n        # Get expert guidance\n        guidance = self.request_expert_guidance(task, result.context)\n        \n        # Follow expert advice\n        improved_result = self.small_model.solve_with_guidance(task, guidance)\n        \n        # Report back to expert\n        feedback = f\"I followed your guidance: {guidance}\\nResult: {improved_result}\"\n        expert_validation = self.expert_model.validate(feedback)\n        \n    return improved_result\n```", "verdict": "pass", "verdict_note": ""}, {"id": "s3", "text": "Track expert usage patterns to optimize when collaboration provides most value", "example": "```python\nclass CollaborationTracker:\n    def __init__(self):\n        self.usage_stats = {\n            \"expert_calls\": 0,\n            \"success_with_expert\": 0,\n            \"success_without_expert\": 0\n        }\n    \n    def log_interaction(self, used_expert, success):\n        if used_expert:\n            self.usage_stats[\"expert_calls\"] += 1\n            if success:\n                self.usage_stats[\"success_with_expert\"] += 1\n        elif success:\n            self.usage_stats[\"success_without_expert\"] += 1\n            \n    def get_efficiency_metrics(self):\n        total_cost = (self.usage_stats[\"expert_calls\"] * EXPERT_COST + \n                     total_tasks * SMALL_MODEL_COST)\n        return {\"cost_per_success\": total_cost / total_successes}\n```", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Working with the Messages API", "url": "https://docs.anthropic.com/en/docs/working-with-the-messages-api"}, {"title": "Tool Use", "url": "https://docs.anthropic.com/en/docs/tool-use"}, {"title": "Rate Limits", "url": "https://docs.anthropic.com/en/api/rate-limits"}]}], "date": "2026-03-03", "issueNumber": 2};
+  </script>
+</head>
+<body class="dark bg-surface text-text-DEFAULT min-h-screen">
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState } = React;
+const DATA = window.__DIGEST_DATA__;
+
+function Badge({ label, color }) {
+  const colors = {
+    'cs.AI': 'bg-blue-600',
+    'cs.SE': 'bg-green-600',
+    pass: 'bg-emerald-600',
+    flag: 'bg-amber-600',
+  };
+  return (
+    <span className={`${colors[label] || color || 'bg-gray-600'} text-xs font-semibold px-2 py-0.5 rounded-full`}>
+      {label}
+    </span>
+  );
+}
+
+function StepCard({ step, index }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border border-gray-700 rounded-lg mb-2 overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-light transition text-left"
+      >
+        <span className="flex items-center gap-2">
+          <span className="text-accent font-mono text-sm">#{index + 1}</span>
+          <span className="text-sm">{step.text}</span>
+        </span>
+        <span className="flex items-center gap-2">
+          {step.verdict && <Badge label={step.verdict} />}
+          <span className="text-text-muted text-xs">{open ? '▲' : '▼'}</span>
+        </span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-2">
+          {step.example && (
+            <pre className="bg-gray-900 rounded p-3 text-xs overflow-x-auto whitespace-pre-wrap">
+              <code>{step.example}</code>
+            </pre>
+          )}
+          {step.verdict_note && (
+            <p className="text-text-muted text-xs italic">{step.verdict_note}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PaperCard({ paper }) {
+  return (
+    <div className="bg-surface-light border border-gray-700 rounded-xl p-6 mb-4">
+      <div className="flex items-start justify-between gap-4 mb-3">
+        <div>
+          <a
+            href={paper.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-lg font-bold text-white hover:text-accent-light transition"
+          >
+            {paper.title}
+          </a>
+          <p className="text-text-muted text-xs mt-1">arXiv: {paper.id} · {paper.date}</p>
+        </div>
+        <div className="flex gap-2 flex-shrink-0">
+          <Badge label={paper.category} />
+          {paper.technique && <Badge label={paper.technique} color="bg-purple-600" />}
+        </div>
+      </div>
+      <p className="text-sm text-text-muted mb-2"><strong className="text-text-DEFAULT">TL;DR:</strong> {paper.tldr}</p>
+      <p className="text-sm mb-4">{paper.implication}</p>
+      {paper.steps && paper.steps.length > 0 && (
+        <div className="mb-2">
+          <h4 className="text-xs uppercase tracking-wider text-text-muted mb-2">Actionable Steps</h4>
+          {paper.steps.map((s, i) => <StepCard key={s.id || i} step={s} index={i} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GuidesTab({ papers }) {
+  return (
+    <div>
+      {papers.map((p, i) => <PaperCard key={p.id || i} paper={p} />)}
+      {papers.length === 0 && <p className="text-text-muted">No papers found for this period.</p>}
+    </div>
+  );
+}
+
+function FactCheckTab({ papers }) {
+  const allSteps = papers.flatMap(p =>
+    (p.steps || []).map(s => ({ ...s, paperTitle: p.title, paperId: p.id }))
+  );
+  const flagged = allSteps.filter(s => s.verdict === 'flag');
+  const passed = allSteps.filter(s => s.verdict === 'pass');
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-sm uppercase tracking-wider text-text-muted mb-3">
+          Summary: {passed.length} passed · {flagged.length} flagged · {allSteps.length} total
+        </h3>
+      </div>
+      {flagged.length > 0 && (
+        <div>
+          <h3 className="text-amber-400 font-semibold mb-2">Flagged Steps</h3>
+          {flagged.map((s, i) => (
+            <div key={i} className="bg-surface-light border border-amber-700 rounded-lg p-4 mb-2">
+              <p className="text-sm font-medium">{s.paperTitle}</p>
+              <p className="text-sm text-text-muted mt-1">{s.text}</p>
+              {s.verdict_note && <p className="text-xs text-amber-300 mt-1">{s.verdict_note}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+      {passed.length > 0 && (
+        <div>
+          <h3 className="text-emerald-400 font-semibold mb-2">Passed Steps</h3>
+          {passed.map((s, i) => (
+            <div key={i} className="bg-surface-light border border-gray-700 rounded-lg p-3 mb-2">
+              <p className="text-sm">{s.text}</p>
+              <p className="text-xs text-text-muted mt-1">from: {s.paperTitle}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DocsIndexTab({ papers }) {
+  const allDocs = papers.flatMap(p =>
+    (p.docs || []).map(d => ({ ...d, paperTitle: p.title }))
+  );
+  const unique = [...new Map(allDocs.map(d => [d.url, d])).values()];
+  return (
+    <div>
+      {unique.length === 0 && <p className="text-text-muted">No documentation links found.</p>}
+      <div className="space-y-2">
+        {unique.map((d, i) => (
+          <div key={i} className="flex items-center justify-between bg-surface-light border border-gray-700 rounded-lg p-3">
+            <div>
+              <a
+                href={d.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-accent-light hover:underline"
+              >
+                {d.title}
+              </a>
+              <p className="text-xs text-text-muted">referenced by: {d.paperTitle}</p>
+            </div>
+            <span className="text-text-muted text-xs">↗</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DigestApp() {
+  const [tab, setTab] = useState('guides');
+  const { papers, date, issueNumber } = DATA;
+  const tabs = [
+    { id: 'guides', label: 'Guides' },
+    { id: 'factcheck', label: 'Fact-Check' },
+    { id: 'docs', label: 'Docs Index' },
+  ];
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold text-white">AI Research Digest</h1>
+        <p className="text-text-muted mt-1">
+          Issue #{issueNumber} · {date} · {papers.length} papers
+        </p>
+      </header>
+      <nav className="flex gap-1 mb-6 border-b border-gray-700">
+        {tabs.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`px-4 py-2 text-sm font-medium transition border-b-2 -mb-px ${
+              tab === t.id
+                ? 'border-accent text-white'
+                : 'border-transparent text-text-muted hover:text-white'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </nav>
+      <main>
+        {tab === 'guides' && <GuidesTab papers={papers} />}
+        {tab === 'factcheck' && <FactCheckTab papers={papers} />}
+        {tab === 'docs' && <DocsIndexTab papers={papers} />}
+      </main>
+      <footer className="mt-12 pt-4 border-t border-gray-700 text-center text-text-muted text-xs">
+        Generated by AI-Digest · Powered by Claude
+      </footer>
+    </div>
+  );
+}
+
+ReactDOM.render(<DigestApp />, document.getElementById('root'));
+  </script>
+</body>
+</html>
