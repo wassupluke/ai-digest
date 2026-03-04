@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Research Digest</title>
+  <link rel="stylesheet" href="../digest.css" />
+  <script>
+    window.__DIGEST_DATA__ = {"papers": [{"id": "2602.24288", "date": "Feb 2026", "title": "DARE-bench: Evaluating Modeling and Instruction Fidelity of LLMs in Data Science", "url": "https://arxiv.org/abs/2602.24288", "category": "cs.AI", "technique": "Process-aware Data Science Evaluation", "tldr": "Introduces DARE-bench, a benchmark with 6,300 Kaggle-derived tasks that evaluates LLM agent performance on data science workflows with verifiable ground truth. Fine-tuning on DARE-bench tasks improves model accuracy by up to 8x.", "implication": "Claude users working on data science tasks can expect improved evaluation methods for their agent workflows. The benchmark's emphasis on instruction fidelity and reproducible evaluation provides a framework for systematically improving data science automation.", "steps": [{"id": "s1", "text": "Structure data science prompts to explicitly control randomness and provide deterministic outcomes", "example": "```python\n# Set explicit seeds for reproducibility\nnp.random.seed(42)\nrandom.seed(42)\n\n# Be specific about data splitting\nfrom sklearn.model_selection import train_test_split\nX_train, X_test, y_train, y_test = train_test_split(\n    X, y, test_size=0.2, random_state=42, stratify=y\n)\n```", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "Break down complex data science workflows into verifiable sub-tasks with concrete success metrics", "example": "```markdown\n## Task: Customer Churn Prediction\n\n1. Data preprocessing (target: no missing values, balanced classes)\n2. Feature engineering (target: create 3 new features from existing data)\n3. Model training (target: achieve >80% accuracy on validation set)\n4. Generate predictions on test set (format: CSV with customer_id, prediction columns)\n```", "verdict": "pass", "verdict_note": ""}, {"id": "s3", "text": "Use sandbox environments to execute and validate data science code before production deployment", "example": "```python\n# Claude tool_use with code execution\nresult = claude.execute_code(\n    code=\"\"\"\n    import pandas as pd\n    df = pd.read_csv('data.csv')\n    model.fit(X_train, y_train)\n    predictions = model.predict(X_test)\n    \"\"\",\n    verify_outputs=True,\n    save_artifacts=['model.pkl', 'predictions.csv']\n)\n```", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Tool Use", "url": "https://docs.anthropic.com/en/docs/tool-use"}, {"title": "Code Execution", "url": "https://docs.anthropic.com/en/docs/about-claude/use-case-guides/coding"}]}, {"id": "2602.22790", "date": "Feb 2026", "title": "Natural Language Declarative Prompting (NLD-P): A Modular Governance Method for Prompt Design Under Model Drift", "url": "https://arxiv.org/abs/2602.22790", "category": "cs.CL", "technique": "Modular Prompt Architecture", "tldr": "Formalizes NLD-P as a declarative governance method that separates prompts into modular components: provenance, constraints, task content, and evaluation. This structural approach maintains prompt stability as models evolve.", "implication": "Claude users can make their prompts more resilient to model updates by adopting modular prompt design. This is especially valuable for production systems where prompt behavior needs to remain consistent across Claude version updates.", "steps": [{"id": "s1", "text": "Structure prompts with explicit separation of concerns using NLD-P components", "example": "```markdown\n## PROVENANCE\nRole: Senior Data Analyst\nContext: Q4 financial reporting for executive dashboard\n\n## CONSTRAINTS  \n- Use only data from approved sources\n- Include confidence intervals for all estimates\n- Flag any data quality issues\n\n## TASK\nAnalyze revenue trends and create executive summary\n\n## EVALUATION\nOutput must include: trend direction, key metrics, actionable insights\n```", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "Make governance layers explicit and independently revisable to handle model drift", "example": "```python\n# Separate constraint logic from task execution\nCONSTRAINTS = {\n    \"output_format\": \"JSON with schema validation\",\n    \"error_handling\": \"Return null for invalid inputs\",\n    \"validation_rules\": [\"check_data_types\", \"verify_ranges\"]\n}\n\nTASK_CONTENT = \"Process customer feedback data\"\n\nprompt = f\"\"\"\nCONSTRAINTS: {CONSTRAINTS}\nTASK: {TASK_CONTENT}\n\"\"\"\n```", "verdict": "pass", "verdict_note": ""}, {"id": "s3", "text": "Version control prompt components to track changes and rollback if needed", "example": "```python\n# prompt_v1.2.py\nclass PromptComponents:\n    VERSION = \"1.2\"\n    PROVENANCE = \"Data processing agent v1.2\"\n    CONSTRAINTS = {\n        \"max_tokens\": 4000,\n        \"temperature\": 0.1,\n        \"format\": \"structured_output\"\n    }\n    \n    def build_prompt(self, task_content):\n        return f\"\"\"\n        ## PROVENANCE\\n{self.PROVENANCE}\\n\n        ## CONSTRAINTS\\n{self.CONSTRAINTS}\\n\n        ## TASK\\n{task_content}\n        \"\"\"\n```", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Prompt Engineering", "url": "https://docs.anthropic.com/en/docs/prompt-engineering"}, {"title": "System Prompts", "url": "https://docs.anthropic.com/en/docs/system-prompts"}]}, {"id": "2602.22402", "date": "Feb 2026", "title": "Contextual Memory Virtualisation: DAG-Based State Management and Structurally Lossless Trimming for LLM Agents", "url": "https://arxiv.org/abs/2602.22402", "category": "cs.SE", "technique": "Context Window Management", "tldr": "Proposes CMV system that models LLM session history as a DAG with snapshot, branch, and trim operations. Achieves 20-86% token reduction while preserving all user messages and responses through structurally lossless trimming.", "implication": "Claude users can manage longer conversations and complex projects more efficiently by implementing context management strategies that preserve important state while reducing token costs. This is particularly valuable for extended coding sessions or multi-turn analysis.", "steps": [{"id": "s1", "text": "Implement conversation snapshots at key decision points to enable branching and rollback", "example": "```python\nclass ConversationManager:\n    def __init__(self):\n        self.snapshots = {}\n        self.current_branch = \"main\"\n        \n    def create_snapshot(self, name, conversation_state):\n        self.snapshots[name] = {\n            \"messages\": conversation_state.copy(),\n            \"timestamp\": datetime.now(),\n            \"parent\": self.current_branch\n        }\n        \n    def branch_from_snapshot(self, snapshot_name, new_branch):\n        self.current_branch = new_branch\n        return self.snapshots[snapshot_name][\"messages\"]\n```", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "Strip mechanical bloat like tool outputs and base64 images while preserving semantic content", "example": "```python\ndef trim_context(messages):\n    trimmed = []\n    for msg in messages:\n        if msg.get('role') in ['user', 'assistant']:\n            # Keep all user/assistant content verbatim\n            trimmed.append(msg)\n        elif msg.get('role') == 'tool':\n            # Replace large outputs with summaries\n            if len(msg['content']) > 1000:\n                msg['content'] = f\"[TRIMMED: {len(msg['content'])} chars of tool output]\"\n            trimmed.append(msg)\n    return trimmed\n```", "verdict": "pass", "verdict_note": ""}, {"id": "s3", "text": "Use prompt caching for repeated context patterns to reduce costs in long sessions", "example": "```python\n# With Claude API prompt caching\nresponse = client.messages.create(\n    model=\"claude-3-5-sonnet-20241022\",\n    max_tokens=1024,\n    messages=[\n        {\n            \"role\": \"user\", \n            \"content\": [\n                {\n                    \"type\": \"text\",\n                    \"text\": \"Analyze this codebase:\",\n                    \"cache_control\": {\"type\": \"ephemeral\"}\n                }\n            ]\n        }\n    ]\n)\n```", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Prompt Caching", "url": "https://docs.anthropic.com/en/docs/prompt-caching"}, {"title": "Managing Long Conversations", "url": "https://docs.anthropic.com/en/docs/about-claude/use-case-guides/long-form-content"}]}, {"id": "2602.22124", "date": "Feb 2026", "title": "SWE-Protégé: Learning to Selectively Collaborate With an Expert Unlocks Small Language Models as Software Engineering Agents", "url": "https://arxiv.org/abs/2602.22124", "category": "cs.SE", "technique": "Expert-Protégé Collaboration", "tldr": "Framework where a small language model acts as primary agent but learns to selectively request guidance from a large expert model. Achieves 42.4% on SWE-bench with only ~4 expert calls per task, improving cost efficiency by 10x.", "implication": "Claude users can implement cost-effective agent architectures by using smaller models for routine tasks while reserving Claude's advanced capabilities for complex reasoning. This pattern is ideal for applications with budget constraints or high-volume processing needs.", "steps": [{"id": "s1", "text": "Design agent workflows that recognize when they need expert assistance and explicitly request help", "example": "```python\nclass ProtégéAgent:\n    def __init__(self, small_model, expert_model):\n        self.small_model = small_model\n        self.expert_model = expert_model\n        self.stall_count = 0\n        \n    def should_request_expert(self, current_state):\n        # Request help if stuck in loops or making no progress\n        if self.stall_count > 3 or current_state.get('error_count', 0) > 2:\n            return True\n        return False\n        \n    def request_expert_guidance(self, problem, context):\n        guidance = self.expert_model.generate(\n            f\"As an expert, provide guidance for: {problem}\\nContext: {context}\"\n        )\n        return guidance\n```", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "Implement feedback loops where the agent reports back to expert after following guidance", "example": "```python\ndef collaborative_problem_solving(self, task):\n    # Primary agent attempts task\n    result = self.small_model.solve(task)\n    \n    if self.should_request_expert(result):\n        # Get expert guidance\n        guidance = self.request_expert_guidance(task, result.context)\n        \n        # Follow expert advice\n        improved_result = self.small_model.solve_with_guidance(task, guidance)\n        \n        # Report back to expert\n        feedback = f\"I followed your guidance: {guidance}\\nResult: {improved_result}\"\n        expert_validation = self.expert_model.validate(feedback)\n        \n    return improved_result\n```", "verdict": "pass", "verdict_note": ""}, {"id": "s3", "text": "Track expert usage patterns to optimize when collaboration provides most value", "example": "```python\nclass CollaborationTracker:\n    def __init__(self):\n        self.usage_stats = {\n            \"expert_calls\": 0,\n            \"success_with_expert\": 0,\n            \"success_without_expert\": 0\n        }\n    \n    def log_interaction(self, used_expert, success):\n        if used_expert:\n            self.usage_stats[\"expert_calls\"] += 1\n            if success:\n                self.usage_stats[\"success_with_expert\"] += 1\n        elif success:\n            self.usage_stats[\"success_without_expert\"] += 1\n            \n    def get_efficiency_metrics(self):\n        total_cost = (self.usage_stats[\"expert_calls\"] * EXPERT_COST + \n                     total_tasks * SMALL_MODEL_COST)\n        return {\"cost_per_success\": total_cost / total_successes}\n```", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Working with the Messages API", "url": "https://docs.anthropic.com/en/docs/working-with-the-messages-api"}, {"title": "Tool Use", "url": "https://docs.anthropic.com/en/docs/tool-use"}, {"title": "Rate Limits", "url": "https://docs.anthropic.com/en/api/rate-limits"}]}], "date": "2026-03-01", "issueNumber": 1};
+  </script>
+</head>
+<body>
+  <div class="container" id="app"></div>
+  <script>
+(function() {
+  var DATA = window.__DIGEST_DATA__;
+  var papers = DATA.papers || [];
+  var app = document.getElementById('app');
+
+  // --- Helpers ---
+  function el(tag, attrs, children) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function(k) {
+      if (k === 'className') e.className = attrs[k];
+      else if (k === 'html') e.innerHTML = attrs[k];
+      else if (k.slice(0,2) === 'on') e.addEventListener(k.slice(2).toLowerCase(), attrs[k]);
+      else e.setAttribute(k, attrs[k]);
+    });
+    if (typeof children === 'string') e.textContent = children;
+    else if (Array.isArray(children)) children.forEach(function(c) { if (c) e.appendChild(c); });
+    else if (children instanceof Node) e.appendChild(children);
+    return e;
+  }
+
+  function badgeClass(label) {
+    if (!label) return 'badge badge-default';
+    var l = label.toLowerCase().replace(/[\.\s]/g, '-');
+    var map = { 'cs-ai': 'badge-cs-ai', 'cs-se': 'badge-cs-se', 'cs-cl': 'badge-cs-cl', 'pass': 'badge-pass', 'flag': 'badge-flag' };
+    return 'badge ' + (map[l] || 'badge-technique');
+  }
+
+  function escapeHtml(s) {
+    var d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+  }
+
+  // --- Build Step ---
+  function buildStep(step, idx) {
+    var div = el('div', { className: 'step' });
+    var btn = el('button', { className: 'step-toggle' });
+    var left = el('span');
+    left.appendChild(el('span', { className: 'step-num mono' }, '#' + (idx + 1)));
+    left.appendChild(document.createTextNode(' ' + step.text));
+    var right = el('span', { className: 'step-right' });
+    if (step.verdict) right.appendChild(el('span', { className: badgeClass(step.verdict) }, step.verdict));
+    right.appendChild(el('span', { className: 'step-arrow' }, '\u25BC'));
+    btn.appendChild(left); btn.appendChild(right);
+    var body = el('div', { className: 'step-body' });
+    if (step.example) {
+      var raw = step.example.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '');
+      body.appendChild(el('pre', { className: 'code-block', html: '<code>' + escapeHtml(raw) + '</code>' }));
+    }
+    if (step.verdict_note) body.appendChild(el('p', { className: 'verdict-note' }, step.verdict_note));
+    btn.addEventListener('click', function() { div.classList.toggle('open'); });
+    div.appendChild(btn); div.appendChild(body);
+    return div;
+  }
+
+  // --- Build Paper ---
+  function buildPaper(p) {
+    var card = el('div', { className: 'paper' });
+    var hdr = el('div', { className: 'paper-header' });
+    var info = el('div');
+    var link = el('a', { href: p.url, target: '_blank', rel: 'noopener noreferrer', className: 'paper-title' }, p.title);
+    var meta = el('p', { className: 'paper-meta' });
+    meta.innerHTML = 'arXiv: <span class="mono">' + escapeHtml(p.id) + '</span> \u00B7 ' + escapeHtml(p.date);
+    info.appendChild(link); info.appendChild(meta);
+    var badges = el('div', { className: 'badges' });
+    if (p.category) badges.appendChild(el('span', { className: badgeClass(p.category) }, p.category));
+    if (p.technique) badges.appendChild(el('span', { className: badgeClass(p.technique) }, p.technique));
+    hdr.appendChild(info); hdr.appendChild(badges);
+    card.appendChild(hdr);
+    var tldr = el('p', { className: 'tldr' });
+    tldr.innerHTML = '<strong>TL;DR:</strong> ' + escapeHtml(p.tldr);
+    card.appendChild(tldr);
+    card.appendChild(el('p', { className: 'implication' }, p.implication));
+    if (p.steps && p.steps.length) {
+      card.appendChild(el('p', { className: 'steps-label' }, 'Actionable Steps'));
+      p.steps.forEach(function(s, i) { card.appendChild(buildStep(s, i)); });
+    }
+    return card;
+  }
+
+  // --- Tabs ---
+  function buildGuides() {
+    var div = el('div');
+    if (!papers.length) { div.appendChild(el('p', { className: 'empty' }, 'No papers found for this period.')); return div; }
+    papers.forEach(function(p) { div.appendChild(buildPaper(p)); });
+    return div;
+  }
+
+  function buildFactCheck() {
+    var div = el('div');
+    var allSteps = []; papers.forEach(function(p) {
+      (p.steps || []).forEach(function(s) { allSteps.push({ step: s, paperTitle: p.title }); });
+    });
+    var flagged = allSteps.filter(function(x) { return x.step.verdict === 'flag'; });
+    var passed = allSteps.filter(function(x) { return x.step.verdict === 'pass'; });
+    div.appendChild(el('p', { className: 'fc-summary' }, 'Summary: ' + passed.length + ' passed \u00B7 ' + flagged.length + ' flagged \u00B7 ' + allSteps.length + ' total'));
+    if (flagged.length) {
+      div.appendChild(el('h3', { className: 'fc-section-title flagged' }, 'Flagged Steps'));
+      flagged.forEach(function(x) {
+        var item = el('div', { className: 'fc-item flagged' });
+        item.appendChild(el('p', { className: 'fc-item-paper' }, x.paperTitle));
+        item.appendChild(el('p', { className: 'fc-item-text' }, x.step.text));
+        if (x.step.verdict_note) item.appendChild(el('p', { className: 'fc-item-note' }, x.step.verdict_note));
+        div.appendChild(item);
+      });
+    }
+    if (passed.length) {
+      div.appendChild(el('h3', { className: 'fc-section-title passed' }, 'Passed Steps'));
+      passed.forEach(function(x) {
+        var item = el('div', { className: 'fc-item' });
+        item.appendChild(el('p', { className: 'fc-item-text', html: escapeHtml(x.step.text) }));
+        item.appendChild(el('p', { className: 'doc-ref' }, 'from: ' + x.paperTitle));
+        div.appendChild(item);
+      });
+    }
+    return div;
+  }
+
+  function buildDocs() {
+    var div = el('div');
+    var seen = {}; var docs = [];
+    papers.forEach(function(p) {
+      (p.docs || []).forEach(function(d) {
+        if (!seen[d.url]) { seen[d.url] = true; docs.push({ url: d.url, title: d.title, paperTitle: p.title }); }
+      });
+    });
+    if (!docs.length) { div.appendChild(el('p', { className: 'empty' }, 'No documentation links found.')); return div; }
+    docs.forEach(function(d) {
+      var item = el('div', { className: 'doc-item' });
+      var left = el('div');
+      left.appendChild(el('a', { href: d.url, target: '_blank', rel: 'noopener noreferrer' }, d.title));
+      left.appendChild(el('p', { className: 'doc-ref' }, 'referenced by: ' + d.paperTitle));
+      item.appendChild(left);
+      item.appendChild(el('span', { className: 'doc-arrow' }, '\u2197'));
+      div.appendChild(item);
+    });
+    return div;
+  }
+
+  // --- Render ---
+  var header = el('header');
+  header.appendChild(el('h1', null, 'AI Research Digest'));
+  header.appendChild(el('p', null, 'Issue #' + DATA.issueNumber + ' \u00B7 ' + DATA.date + ' \u00B7 ' + papers.length + ' papers'));
+  app.appendChild(header);
+
+  var nav = el('nav', { className: 'tab-nav' });
+  var tabs = [{ id: 'guides', label: 'Guides' }, { id: 'factcheck', label: 'Fact-Check' }, { id: 'docs', label: 'Docs Index' }];
+  var panels = {};
+  var builders = { guides: buildGuides, factcheck: buildFactCheck, docs: buildDocs };
+
+  tabs.forEach(function(t, i) {
+    var btn = el('button', { className: 'tab-btn' + (i === 0 ? ' active' : ''), 'data-tab': t.id }, t.label);
+    nav.appendChild(btn);
+    var panel = el('div', { className: 'tab-panel' + (i === 0 ? ' active' : ''), id: 'panel-' + t.id });
+    panel.appendChild(builders[t.id]());
+    panels[t.id] = panel;
+  });
+  app.appendChild(nav);
+  Object.keys(panels).forEach(function(k) { app.appendChild(panels[k]); });
+
+  nav.addEventListener('click', function(e) {
+    var btn = e.target.closest('.tab-btn');
+    if (!btn) return;
+    var id = btn.getAttribute('data-tab');
+    nav.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    Object.keys(panels).forEach(function(k) { panels[k].classList.toggle('active', k === id); });
+  });
+
+  app.appendChild(el('footer', null, 'Generated by AI-Digest \u00B7 Powered by Claude'));
+})();
+  </script>
+</body>
+</html>
