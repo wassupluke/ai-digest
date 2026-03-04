@@ -4,236 +4,183 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Research Digest</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            surface: { DEFAULT: '#1a1a2e', light: '#16213e', card: '#0f3460' },
-            accent: { DEFAULT: '#e94560', light: '#ff6b6b' },
-            text: { DEFAULT: '#eaeaea', muted: '#a0a0b0' }
-          }
-        }
-      }
-    }
-  </script>
+  <link rel="stylesheet" href="../digest.css" />
   <script>
     window.__DIGEST_DATA__ = __DIGEST_DATA_PLACEHOLDER__;
   </script>
 </head>
-<body class="dark bg-surface text-text-DEFAULT min-h-screen">
-  <div id="root"></div>
-  <script type="text/babel">
-const { useState } = React;
-const DATA = window.__DIGEST_DATA__;
+<body>
+  <div class="container" id="app"></div>
+  <script>
+(function() {
+  var DATA = window.__DIGEST_DATA__;
+  var papers = DATA.papers || [];
+  var app = document.getElementById('app');
 
-function Badge({ label, color }) {
-  const colors = {
-    'cs.AI': 'bg-blue-600',
-    'cs.SE': 'bg-green-600',
-    pass: 'bg-emerald-600',
-    flag: 'bg-amber-600',
-  };
-  return (
-    <span className={`${colors[label] || color || 'bg-gray-600'} text-xs font-semibold px-2 py-0.5 rounded-full`}>
-      {label}
-    </span>
-  );
-}
+  // --- Helpers ---
+  function el(tag, attrs, children) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function(k) {
+      if (k === 'className') e.className = attrs[k];
+      else if (k === 'html') e.innerHTML = attrs[k];
+      else if (k.slice(0,2) === 'on') e.addEventListener(k.slice(2).toLowerCase(), attrs[k]);
+      else e.setAttribute(k, attrs[k]);
+    });
+    if (typeof children === 'string') e.textContent = children;
+    else if (Array.isArray(children)) children.forEach(function(c) { if (c) e.appendChild(c); });
+    else if (children instanceof Node) e.appendChild(children);
+    return e;
+  }
 
-function StepCard({ step, index }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="border border-gray-700 rounded-lg mb-2 overflow-hidden">
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-light transition text-left"
-      >
-        <span className="flex items-center gap-2">
-          <span className="text-accent font-mono text-sm">#{index + 1}</span>
-          <span className="text-sm">{step.text}</span>
-        </span>
-        <span className="flex items-center gap-2">
-          {step.verdict && <Badge label={step.verdict} />}
-          <span className="text-text-muted text-xs">{open ? '▲' : '▼'}</span>
-        </span>
-      </button>
-      {open && (
-        <div className="px-4 pb-4 space-y-2">
-          {step.example && (
-            <pre className="bg-gray-900 rounded p-3 text-xs overflow-x-auto whitespace-pre-wrap">
-              <code>{step.example}</code>
-            </pre>
-          )}
-          {step.verdict_note && (
-            <p className="text-text-muted text-xs italic">{step.verdict_note}</p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
+  function badgeClass(label) {
+    if (!label) return 'badge badge-default';
+    var l = label.toLowerCase().replace(/[\.\s]/g, '-');
+    var map = { 'cs-ai': 'badge-cs-ai', 'cs-se': 'badge-cs-se', 'cs-cl': 'badge-cs-cl', 'pass': 'badge-pass', 'flag': 'badge-flag' };
+    return 'badge ' + (map[l] || 'badge-technique');
+  }
 
-function PaperCard({ paper }) {
-  return (
-    <div className="bg-surface-light border border-gray-700 rounded-xl p-6 mb-4">
-      <div className="flex items-start justify-between gap-4 mb-3">
-        <div>
-          <a
-            href={paper.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-lg font-bold text-white hover:text-accent-light transition"
-          >
-            {paper.title}
-          </a>
-          <p className="text-text-muted text-xs mt-1">arXiv: {paper.id} · {paper.date}</p>
-        </div>
-        <div className="flex gap-2 flex-shrink-0">
-          <Badge label={paper.category} />
-          {paper.technique && <Badge label={paper.technique} color="bg-purple-600" />}
-        </div>
-      </div>
-      <p className="text-sm text-text-muted mb-2"><strong className="text-text-DEFAULT">TL;DR:</strong> {paper.tldr}</p>
-      <p className="text-sm mb-4">{paper.implication}</p>
-      {paper.steps && paper.steps.length > 0 && (
-        <div className="mb-2">
-          <h4 className="text-xs uppercase tracking-wider text-text-muted mb-2">Actionable Steps</h4>
-          {paper.steps.map((s, i) => <StepCard key={s.id || i} step={s} index={i} />)}
-        </div>
-      )}
-    </div>
-  );
-}
+  function escapeHtml(s) {
+    var d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+  }
 
-function GuidesTab({ papers }) {
-  return (
-    <div>
-      {papers.map((p, i) => <PaperCard key={p.id || i} paper={p} />)}
-      {papers.length === 0 && <p className="text-text-muted">No papers found for this period.</p>}
-    </div>
-  );
-}
+  // --- Build Step ---
+  function buildStep(step, idx) {
+    var div = el('div', { className: 'step' });
+    var btn = el('button', { className: 'step-toggle' });
+    var left = el('span');
+    left.appendChild(el('span', { className: 'step-num mono' }, '#' + (idx + 1)));
+    left.appendChild(document.createTextNode(' ' + step.text));
+    var right = el('span', { className: 'step-right' });
+    if (step.verdict) right.appendChild(el('span', { className: badgeClass(step.verdict) }, step.verdict));
+    right.appendChild(el('span', { className: 'step-arrow' }, '\u25BC'));
+    btn.appendChild(left); btn.appendChild(right);
+    var body = el('div', { className: 'step-body' });
+    if (step.example) {
+      var raw = step.example.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '');
+      body.appendChild(el('pre', { className: 'code-block', html: '<code>' + escapeHtml(raw) + '</code>' }));
+    }
+    if (step.verdict_note) body.appendChild(el('p', { className: 'verdict-note' }, step.verdict_note));
+    btn.addEventListener('click', function() { div.classList.toggle('open'); });
+    div.appendChild(btn); div.appendChild(body);
+    return div;
+  }
 
-function FactCheckTab({ papers }) {
-  const allSteps = papers.flatMap(p =>
-    (p.steps || []).map(s => ({ ...s, paperTitle: p.title, paperId: p.id }))
-  );
-  const flagged = allSteps.filter(s => s.verdict === 'flag');
-  const passed = allSteps.filter(s => s.verdict === 'pass');
-  return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-sm uppercase tracking-wider text-text-muted mb-3">
-          Summary: {passed.length} passed · {flagged.length} flagged · {allSteps.length} total
-        </h3>
-      </div>
-      {flagged.length > 0 && (
-        <div>
-          <h3 className="text-amber-400 font-semibold mb-2">Flagged Steps</h3>
-          {flagged.map((s, i) => (
-            <div key={i} className="bg-surface-light border border-amber-700 rounded-lg p-4 mb-2">
-              <p className="text-sm font-medium">{s.paperTitle}</p>
-              <p className="text-sm text-text-muted mt-1">{s.text}</p>
-              {s.verdict_note && <p className="text-xs text-amber-300 mt-1">{s.verdict_note}</p>}
-            </div>
-          ))}
-        </div>
-      )}
-      {passed.length > 0 && (
-        <div>
-          <h3 className="text-emerald-400 font-semibold mb-2">Passed Steps</h3>
-          {passed.map((s, i) => (
-            <div key={i} className="bg-surface-light border border-gray-700 rounded-lg p-3 mb-2">
-              <p className="text-sm">{s.text}</p>
-              <p className="text-xs text-text-muted mt-1">from: {s.paperTitle}</p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+  // --- Build Paper ---
+  function buildPaper(p) {
+    var card = el('div', { className: 'paper' });
+    var hdr = el('div', { className: 'paper-header' });
+    var info = el('div');
+    var link = el('a', { href: p.url, target: '_blank', rel: 'noopener noreferrer', className: 'paper-title' }, p.title);
+    var meta = el('p', { className: 'paper-meta' });
+    meta.innerHTML = 'arXiv: <span class="mono">' + escapeHtml(p.id) + '</span> \u00B7 ' + escapeHtml(p.date);
+    info.appendChild(link); info.appendChild(meta);
+    var badges = el('div', { className: 'badges' });
+    if (p.category) badges.appendChild(el('span', { className: badgeClass(p.category) }, p.category));
+    if (p.technique) badges.appendChild(el('span', { className: badgeClass(p.technique) }, p.technique));
+    hdr.appendChild(info); hdr.appendChild(badges);
+    card.appendChild(hdr);
+    var tldr = el('p', { className: 'tldr' });
+    tldr.innerHTML = '<strong>TL;DR:</strong> ' + escapeHtml(p.tldr);
+    card.appendChild(tldr);
+    card.appendChild(el('p', { className: 'implication' }, p.implication));
+    if (p.steps && p.steps.length) {
+      card.appendChild(el('p', { className: 'steps-label' }, 'Actionable Steps'));
+      p.steps.forEach(function(s, i) { card.appendChild(buildStep(s, i)); });
+    }
+    return card;
+  }
 
-function DocsIndexTab({ papers }) {
-  const allDocs = papers.flatMap(p =>
-    (p.docs || []).map(d => ({ ...d, paperTitle: p.title }))
-  );
-  const unique = [...new Map(allDocs.map(d => [d.url, d])).values()];
-  return (
-    <div>
-      {unique.length === 0 && <p className="text-text-muted">No documentation links found.</p>}
-      <div className="space-y-2">
-        {unique.map((d, i) => (
-          <div key={i} className="flex items-center justify-between bg-surface-light border border-gray-700 rounded-lg p-3">
-            <div>
-              <a
-                href={d.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-accent-light hover:underline"
-              >
-                {d.title}
-              </a>
-              <p className="text-xs text-text-muted">referenced by: {d.paperTitle}</p>
-            </div>
-            <span className="text-text-muted text-xs">↗</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+  // --- Tabs ---
+  function buildGuides() {
+    var div = el('div');
+    if (!papers.length) { div.appendChild(el('p', { className: 'empty' }, 'No papers found for this period.')); return div; }
+    papers.forEach(function(p) { div.appendChild(buildPaper(p)); });
+    return div;
+  }
 
-function DigestApp() {
-  const [tab, setTab] = useState('guides');
-  const { papers, date, issueNumber } = DATA;
-  const tabs = [
-    { id: 'guides', label: 'Guides' },
-    { id: 'factcheck', label: 'Fact-Check' },
-    { id: 'docs', label: 'Docs Index' },
-  ];
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-white">AI Research Digest</h1>
-        <p className="text-text-muted mt-1">
-          Issue #{issueNumber} · {date} · {papers.length} papers
-        </p>
-      </header>
-      <nav className="flex gap-1 mb-6 border-b border-gray-700">
-        {tabs.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`px-4 py-2 text-sm font-medium transition border-b-2 -mb-px ${
-              tab === t.id
-                ? 'border-accent text-white'
-                : 'border-transparent text-text-muted hover:text-white'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
-      <main>
-        {tab === 'guides' && <GuidesTab papers={papers} />}
-        {tab === 'factcheck' && <FactCheckTab papers={papers} />}
-        {tab === 'docs' && <DocsIndexTab papers={papers} />}
-      </main>
-      <footer className="mt-12 pt-4 border-t border-gray-700 text-center text-text-muted text-xs">
-        Generated by AI-Digest · Powered by Claude
-      </footer>
-    </div>
-  );
-}
+  function buildFactCheck() {
+    var div = el('div');
+    var allSteps = []; papers.forEach(function(p) {
+      (p.steps || []).forEach(function(s) { allSteps.push({ step: s, paperTitle: p.title }); });
+    });
+    var flagged = allSteps.filter(function(x) { return x.step.verdict === 'flag'; });
+    var passed = allSteps.filter(function(x) { return x.step.verdict === 'pass'; });
+    div.appendChild(el('p', { className: 'fc-summary' }, 'Summary: ' + passed.length + ' passed \u00B7 ' + flagged.length + ' flagged \u00B7 ' + allSteps.length + ' total'));
+    if (flagged.length) {
+      div.appendChild(el('h3', { className: 'fc-section-title flagged' }, 'Flagged Steps'));
+      flagged.forEach(function(x) {
+        var item = el('div', { className: 'fc-item flagged' });
+        item.appendChild(el('p', { className: 'fc-item-paper' }, x.paperTitle));
+        item.appendChild(el('p', { className: 'fc-item-text' }, x.step.text));
+        if (x.step.verdict_note) item.appendChild(el('p', { className: 'fc-item-note' }, x.step.verdict_note));
+        div.appendChild(item);
+      });
+    }
+    if (passed.length) {
+      div.appendChild(el('h3', { className: 'fc-section-title passed' }, 'Passed Steps'));
+      passed.forEach(function(x) {
+        var item = el('div', { className: 'fc-item' });
+        item.appendChild(el('p', { className: 'fc-item-text', html: escapeHtml(x.step.text) }));
+        item.appendChild(el('p', { className: 'doc-ref' }, 'from: ' + x.paperTitle));
+        div.appendChild(item);
+      });
+    }
+    return div;
+  }
 
-ReactDOM.render(<DigestApp />, document.getElementById('root'));
+  function buildDocs() {
+    var div = el('div');
+    var seen = {}; var docs = [];
+    papers.forEach(function(p) {
+      (p.docs || []).forEach(function(d) {
+        if (!seen[d.url]) { seen[d.url] = true; docs.push({ url: d.url, title: d.title, paperTitle: p.title }); }
+      });
+    });
+    if (!docs.length) { div.appendChild(el('p', { className: 'empty' }, 'No documentation links found.')); return div; }
+    docs.forEach(function(d) {
+      var item = el('div', { className: 'doc-item' });
+      var left = el('div');
+      left.appendChild(el('a', { href: d.url, target: '_blank', rel: 'noopener noreferrer' }, d.title));
+      left.appendChild(el('p', { className: 'doc-ref' }, 'referenced by: ' + d.paperTitle));
+      item.appendChild(left);
+      item.appendChild(el('span', { className: 'doc-arrow' }, '\u2197'));
+      div.appendChild(item);
+    });
+    return div;
+  }
+
+  // --- Render ---
+  var header = el('header');
+  header.appendChild(el('h1', null, 'AI Research Digest'));
+  header.appendChild(el('p', null, 'Issue #' + DATA.issueNumber + ' \u00B7 ' + DATA.date + ' \u00B7 ' + papers.length + ' papers'));
+  app.appendChild(header);
+
+  var nav = el('nav', { className: 'tab-nav' });
+  var tabs = [{ id: 'guides', label: 'Guides' }, { id: 'factcheck', label: 'Fact-Check' }, { id: 'docs', label: 'Docs Index' }];
+  var panels = {};
+  var builders = { guides: buildGuides, factcheck: buildFactCheck, docs: buildDocs };
+
+  tabs.forEach(function(t, i) {
+    var btn = el('button', { className: 'tab-btn' + (i === 0 ? ' active' : ''), 'data-tab': t.id }, t.label);
+    nav.appendChild(btn);
+    var panel = el('div', { className: 'tab-panel' + (i === 0 ? ' active' : ''), id: 'panel-' + t.id });
+    panel.appendChild(builders[t.id]());
+    panels[t.id] = panel;
+  });
+  app.appendChild(nav);
+  Object.keys(panels).forEach(function(k) { app.appendChild(panels[k]); });
+
+  nav.addEventListener('click', function(e) {
+    var btn = e.target.closest('.tab-btn');
+    if (!btn) return;
+    var id = btn.getAttribute('data-tab');
+    nav.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    Object.keys(panels).forEach(function(k) { panels[k].classList.toggle('active', k === id); });
+  });
+
+  app.appendChild(el('footer', null, 'Generated by AI-Digest \u00B7 Powered by Claude'));
+})();
   </script>
 </body>
 </html>
