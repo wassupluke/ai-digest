@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Research Digest</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../digest.css" />
+  <script>
+    window.__DIGEST_DATA__ = {"papers": [{"id": "2603.25498", "date": "Mar 2026", "title": "EcoThink: A Green Adaptive Inference Framework for Sustainable and Accessible Agents", "url": "https://arxiv.org/abs/2603.25498", "category": "cs.AI", "technique": "energy-aware adaptive inference", "tldr": "Framework that reduces LLM energy consumption by 40.4% on average by dynamically routing simple queries to fast paths and complex queries to reasoning chains.", "implication": "Claude users can significantly reduce inference costs and environmental impact by implementing similar adaptive routing based on query complexity, especially important as usage scales.", "steps": [{"id": "s1", "text": "Implement query complexity assessment before inference", "example": "Use a lightweight classifier to score query complexity:\n\nif query_complexity_score < threshold:\n    response = direct_inference(query)\nelse:\n    response = chain_of_thought_inference(query)", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "Route factual queries to direct inference paths", "example": "For simple factual questions, skip CoT:\n\n# Direct for facts\n'What is the capital of France?' → direct_path\n\n# CoT for reasoning\n'Analyze the economic implications...' → reasoning_path", "verdict": "pass", "verdict_note": ""}, {"id": "s3", "text": "Reserve expensive reasoning for complex logical tasks", "example": "Enable CoT only for high-complexity queries:\n\nif requires_multi_step_reasoning(query):\n    use_chain_of_thought = True\nelse:\n    use_chain_of_thought = False", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Claude API Documentation", "url": "https://docs.anthropic.com/en/api"}, {"title": "Prompt Engineering Guide", "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering"}]}, {"id": "2603.00623", "date": "Mar 2026", "title": "TraceSIR: A Multi-Agent Framework for Structured Analysis and Reporting of Agentic Execution Traces", "url": "https://arxiv.org/abs/2603.00623", "category": "cs.AI", "technique": "multi-agent trace analysis", "tldr": "Framework using three specialized agents (StructureAgent, InsightAgent, ReportAgent) to analyze complex agentic execution traces for debugging and optimization.", "implication": "Claude users building complex agentic workflows can implement structured trace analysis to identify failure patterns, localize issues, and optimize agent behavior across multiple task instances.", "steps": [{"id": "s1", "text": "Implement structured trace logging for agent executions", "example": "Log agent traces in structured format:\n\n{\n  'execution_id': 'trace_001',\n  'steps': [\n    {'type': 'tool_call', 'tool': 'search', 'input': '...', 'output': '...'},\n    {'type': 'reasoning', 'thought': '...', 'decision': '...'}\n  ],\n  'outcome': 'success/failure'\n}", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "Create specialized analysis agents for trace processing", "example": "Structure trace analysis pipeline:\n\n# StructureAgent compresses traces\ncompressed_trace = structure_agent.compress(raw_trace)\n\n# InsightAgent identifies issues  \nissues = insight_agent.analyze(compressed_trace)\n\n# ReportAgent generates summaries\nreport = report_agent.synthesize(issues)", "verdict": "pass", "verdict_note": ""}, {"id": "s3", "text": "Aggregate insights across multiple execution instances", "example": "Pattern analysis across traces:\n\nfailure_patterns = []\nfor trace in execution_traces:\n    if trace.outcome == 'failure':\n        pattern = extract_failure_pattern(trace)\n        failure_patterns.append(pattern)\n        \ncommon_issues = identify_recurring_patterns(failure_patterns)", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Claude Computer Use", "url": "https://docs.anthropic.com/en/docs/build-with-claude/computer-use"}, {"title": "Tool Use Documentation", "url": "https://docs.anthropic.com/en/docs/build-with-claude/tool-use"}]}, {"id": "2603.28727", "date": "Mar 2026", "title": "Safer Builders, Risky Maintainers: A Comparative Study of Breaking Changes in Human vs Agentic PRs", "url": "https://arxiv.org/list/cs.SE/recent", "category": "cs.SE", "technique": "agentic code safety analysis", "tldr": "Study comparing breaking changes introduced by AI agents vs humans in pull requests, finding agents are safer during initial development but riskier during maintenance.", "implication": "Claude users should implement stricter review processes for maintenance tasks and leverage Claude's cautiousness for new feature development while being aware of risks in code modification scenarios.", "steps": [{"id": "s1", "text": "Leverage Claude for new feature development where it shows safety advantages", "example": "Use Claude for greenfield development:\n\n# Prompt for new feature development\n\"Create a new user authentication system with the following requirements... Please prioritize code safety and include comprehensive error handling.\"", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "Implement enhanced review for Claude's maintenance tasks", "example": "Add safety checks for code modifications:\n\n# Before modification\n\"Before modifying this existing function, analyze:\n1. What could break if this changes?\n2. What tests need updating?\n3. What dependencies might be affected?\"", "verdict": "pass", "verdict_note": ""}, {"id": "s3", "text": "Use differential prompting strategies for build vs maintain scenarios", "example": "Context-aware prompting:\n\n# For new code\n\"Build a new feature...\"\n\n# For existing code\n\"You are modifying existing production code. Be extremely cautious about breaking changes. Analyze impact before suggesting modifications.\"", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Code Generation Best Practices", "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/code-prompts"}, {"title": "Claude for Developers", "url": "https://docs.anthropic.com/en/docs/about-claude/use-cases"}]}, {"id": "2603.27247", "date": "Mar 2026", "title": "SCOPE: Tree-based Self-Correcting Online Log Parsing via Syntactic-Semantic Collaboration", "url": "https://arxiv.org/list/cs.SE/recent", "category": "cs.CL", "technique": "syntactic-semantic log parsing", "tldr": "Framework combining syntactic tree structures with semantic analysis for improved log parsing accuracy in software systems.", "implication": "Claude users can improve log analysis and debugging by combining structural parsing with semantic understanding, leading to better error diagnosis and system monitoring.", "steps": [{"id": "s1", "text": "Structure log parsing with both syntactic and semantic analysis", "example": "Dual-mode log analysis with Claude:\n\n# Syntactic parsing\nsyntactic_structure = parse_log_syntax(log_entry)\n\n# Semantic analysis\nsemantic_meaning = claude.analyze(\n    f\"Analyze the semantic meaning of this log: {log_entry}\\nSyntactic structure: {syntactic_structure}\"\n)", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "Implement tree-based log template extraction", "example": "Hierarchical log template generation:\n\nprompt = '''\nExtract a hierarchical template from these logs:\n{logs}\n\nCreate a tree structure showing:\n1. Common patterns\n2. Variable fields\n3. Error signatures\n'''\n\ntemplate = claude.complete(prompt)", "verdict": "pass", "verdict_note": ""}, {"id": "s3", "text": "Enable self-correcting log parsing with feedback loops", "example": "Iterative log parsing improvement:\n\nif parsing_confidence < threshold:\n    refined_parsing = claude.complete(\n        f\"The previous parsing had low confidence. Re-analyze this log with focus on: {uncertain_elements}\"\n    )", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Text Analysis with Claude", "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/text-analysis"}, {"title": "Structured Output", "url": "https://docs.anthropic.com/en/docs/build-with-claude/tool-use/structured-outputs"}]}], "date": "2026-04-01", "issueNumber": 2};
+  </script>
+</head>
+<body>
+  <div class="container" id="app"></div>
+  <script>
+(function() {
+  var DATA = window.__DIGEST_DATA__;
+  var papers = DATA.papers || [];
+  var app = document.getElementById('app');
+
+  // --- Helpers ---
+  function el(tag, attrs, children) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function(k) {
+      if (k === 'className') e.className = attrs[k];
+      else if (k === 'html') e.innerHTML = attrs[k];
+      else if (k.slice(0,2) === 'on') e.addEventListener(k.slice(2).toLowerCase(), attrs[k]);
+      else e.setAttribute(k, attrs[k]);
+    });
+    if (typeof children === 'string') e.textContent = children;
+    else if (Array.isArray(children)) children.forEach(function(c) { if (c) e.appendChild(c); });
+    else if (children instanceof Node) e.appendChild(children);
+    return e;
+  }
+
+  function badgeClass(label) {
+    if (!label) return 'badge badge-default';
+    var l = label.toLowerCase().replace(/[\.\s]/g, '-');
+    var map = { 'cs-ai': 'badge-cs-ai', 'cs-se': 'badge-cs-se', 'cs-cl': 'badge-cs-cl', 'pass': 'badge-pass', 'flag': 'badge-flag' };
+    return 'badge ' + (map[l] || 'badge-technique');
+  }
+
+  function escapeHtml(s) {
+    var d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+  }
+
+  // --- Build Step ---
+  function buildStep(step, idx) {
+    var div = el('div', { className: 'step' });
+    var btn = el('button', { className: 'step-toggle' });
+    var left = el('span');
+    left.appendChild(el('span', { className: 'step-num mono' }, '#' + (idx + 1)));
+    left.appendChild(document.createTextNode(' ' + step.text));
+    var right = el('span', { className: 'step-right' });
+    if (step.verdict) right.appendChild(el('span', { className: badgeClass(step.verdict) }, step.verdict));
+    right.appendChild(el('span', { className: 'step-arrow' }, '\u25BC'));
+    btn.appendChild(left); btn.appendChild(right);
+    var body = el('div', { className: 'step-body' });
+    if (step.example) {
+      var raw = step.example.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '');
+      body.appendChild(el('pre', { className: 'code-block', html: '<code>' + escapeHtml(raw) + '</code>' }));
+    }
+    if (step.verdict_note) body.appendChild(el('p', { className: 'verdict-note' }, step.verdict_note));
+    btn.addEventListener('click', function() { div.classList.toggle('open'); });
+    div.appendChild(btn); div.appendChild(body);
+    return div;
+  }
+
+  // --- Build Paper ---
+  function buildPaper(p) {
+    var card = el('div', { className: 'paper' });
+    var hdr = el('div', { className: 'paper-header' });
+    var info = el('div');
+    var link = el('a', { href: p.url, target: '_blank', rel: 'noopener noreferrer', className: 'paper-title' }, p.title);
+    var meta = el('p', { className: 'paper-meta' });
+    meta.innerHTML = 'arXiv: <span class="mono">' + escapeHtml(p.id) + '</span> \u00B7 ' + escapeHtml(p.date);
+    info.appendChild(link); info.appendChild(meta);
+    var badges = el('div', { className: 'badges' });
+    if (p.category) badges.appendChild(el('span', { className: badgeClass(p.category) }, p.category));
+    if (p.technique) badges.appendChild(el('span', { className: badgeClass(p.technique) }, p.technique));
+    hdr.appendChild(info); hdr.appendChild(badges);
+    card.appendChild(hdr);
+    var tldr = el('p', { className: 'tldr' });
+    tldr.innerHTML = '<strong>TL;DR:</strong> ' + escapeHtml(p.tldr);
+    card.appendChild(tldr);
+    card.appendChild(el('p', { className: 'implication' }, p.implication));
+    if (p.steps && p.steps.length) {
+      card.appendChild(el('p', { className: 'steps-label' }, 'Actionable Steps'));
+      p.steps.forEach(function(s, i) { card.appendChild(buildStep(s, i)); });
+    }
+    return card;
+  }
+
+  // --- Tabs ---
+  function buildGuides() {
+    var div = el('div');
+    if (!papers.length) { div.appendChild(el('p', { className: 'empty' }, 'No papers found for this period.')); return div; }
+    papers.forEach(function(p) { div.appendChild(buildPaper(p)); });
+    return div;
+  }
+
+  function buildFactCheck() {
+    var div = el('div');
+    var allSteps = []; papers.forEach(function(p) {
+      (p.steps || []).forEach(function(s) { allSteps.push({ step: s, paperTitle: p.title }); });
+    });
+    var flagged = allSteps.filter(function(x) { return x.step.verdict === 'flag'; });
+    var passed = allSteps.filter(function(x) { return x.step.verdict === 'pass'; });
+    div.appendChild(el('p', { className: 'fc-summary' }, 'Summary: ' + passed.length + ' passed \u00B7 ' + flagged.length + ' flagged \u00B7 ' + allSteps.length + ' total'));
+    if (flagged.length) {
+      div.appendChild(el('h3', { className: 'fc-section-title flagged' }, 'Flagged Steps'));
+      flagged.forEach(function(x) {
+        var item = el('div', { className: 'fc-item flagged' });
+        item.appendChild(el('p', { className: 'fc-item-paper' }, x.paperTitle));
+        item.appendChild(el('p', { className: 'fc-item-text' }, x.step.text));
+        if (x.step.verdict_note) item.appendChild(el('p', { className: 'fc-item-note' }, x.step.verdict_note));
+        div.appendChild(item);
+      });
+    }
+    if (passed.length) {
+      div.appendChild(el('h3', { className: 'fc-section-title passed' }, 'Passed Steps'));
+      passed.forEach(function(x) {
+        var item = el('div', { className: 'fc-item' });
+        item.appendChild(el('p', { className: 'fc-item-text', html: escapeHtml(x.step.text) }));
+        item.appendChild(el('p', { className: 'doc-ref' }, 'from: ' + x.paperTitle));
+        div.appendChild(item);
+      });
+    }
+    return div;
+  }
+
+  function buildDocs() {
+    var div = el('div');
+    var seen = {}; var docs = [];
+    papers.forEach(function(p) {
+      (p.docs || []).forEach(function(d) {
+        if (!seen[d.url]) { seen[d.url] = true; docs.push({ url: d.url, title: d.title, paperTitle: p.title }); }
+      });
+    });
+    if (!docs.length) { div.appendChild(el('p', { className: 'empty' }, 'No documentation links found.')); return div; }
+    docs.forEach(function(d) {
+      var item = el('div', { className: 'doc-item' });
+      var left = el('div');
+      left.appendChild(el('a', { href: d.url, target: '_blank', rel: 'noopener noreferrer' }, d.title));
+      left.appendChild(el('p', { className: 'doc-ref' }, 'referenced by: ' + d.paperTitle));
+      item.appendChild(left);
+      item.appendChild(el('span', { className: 'doc-arrow' }, '\u2197'));
+      div.appendChild(item);
+    });
+    return div;
+  }
+
+  // --- Render ---
+  var header = el('header');
+  header.appendChild(el('h1', null, 'AI Research Digest'));
+  header.appendChild(el('p', null, 'Issue #' + DATA.issueNumber + ' \u00B7 ' + DATA.date + ' \u00B7 ' + papers.length + ' papers'));
+  app.appendChild(header);
+
+  var nav = el('nav', { className: 'tab-nav' });
+  var tabs = [{ id: 'guides', label: 'Guides' }, { id: 'factcheck', label: 'Fact-Check' }, { id: 'docs', label: 'Docs Index' }];
+  var panels = {};
+  var builders = { guides: buildGuides, factcheck: buildFactCheck, docs: buildDocs };
+
+  tabs.forEach(function(t, i) {
+    var btn = el('button', { className: 'tab-btn' + (i === 0 ? ' active' : ''), 'data-tab': t.id }, t.label);
+    nav.appendChild(btn);
+    var panel = el('div', { className: 'tab-panel' + (i === 0 ? ' active' : ''), id: 'panel-' + t.id });
+    panel.appendChild(builders[t.id]());
+    panels[t.id] = panel;
+  });
+  app.appendChild(nav);
+  Object.keys(panels).forEach(function(k) { app.appendChild(panels[k]); });
+
+  nav.addEventListener('click', function(e) {
+    var btn = e.target.closest('.tab-btn');
+    if (!btn) return;
+    var id = btn.getAttribute('data-tab');
+    nav.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    Object.keys(panels).forEach(function(k) { panels[k].classList.toggle('active', k === id); });
+  });
+
+  app.appendChild(el('footer', null, 'Generated by AI-Digest \u00B7 Powered by Claude'));
+})();
+  </script>
+</body>
+</html>
