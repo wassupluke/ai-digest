@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Research Digest</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../digest.css" />
+  <script>
+    window.__DIGEST_DATA__ = {"papers": [{"id": "2604.26649", "date": "Apr 2026", "title": "When to Retrieve During Reasoning: Adaptive Retrieval for Large Reasoning Models", "url": "https://arxiv.org/abs/2604.26649", "category": "cs.IR (cross-listed cs.AI, cs.CL)", "technique": "Step-level adaptive RAG", "tldr": "ReaLM-Retrieve inserts retrieval only when a step-level uncertainty detector identifies a knowledge gap during chain-of-thought reasoning, reducing retrieval calls by 47% while improving multi-hop F1 by 10.1 points over standard RAG.", "implication": "Claude's extended thinking and adaptive reasoning modes benefit most when retrieval is triggered mid-reasoning rather than pre-pended wholesale. Structuring your RAG pipeline to detect uncertainty checkpoints rather than doing a single upfront retrieval will yield better answers on multi-hop questions with fewer token costs. Users building agentic search pipelines with Claude should instrument per-step confidence signals rather than feeding all documents at once.", "steps": [{"id": "s1", "text": "Delay document injection until Claude signals uncertainty inside a reasoning chain. Wrap your RAG call in a tool Claude invokes mid-thought instead of pre-loading context.", "example": "# System prompt fragment\n\"You have access to a search tool. Use it ONLY when you encounter\na fact you are not confident about mid-reasoning. Do not search\nbefore you start thinking. Indicate uncertainty with the phrase\n'[NEED EVIDENCE]' before calling search.\"\n\n# Tool definition (Anthropic SDK)\ntools = [{\n  \"name\": \"search_knowledge_base\",\n  \"description\": \"Retrieve relevant passages when you are uncertain about a specific fact during your reasoning. Call this at the point of uncertainty, not at the start.\",\n  \"input_schema\": {\n    \"type\": \"object\",\n    \"properties\": {\n      \"query\": {\"type\": \"string\", \"description\": \"Specific factual gap to resolve\"}\n    },\n    \"required\": [\"query\"]\n  }\n}]", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "For Claude Opus 4.7+ with adaptive thinking enabled, use effort='high' to increase reasoning depth so uncertainty signals are richer before retrieval is triggered.", "example": "import anthropic\nclient = anthropic.Anthropic()\nresponse = client.messages.create(\n    model=\"claude-opus-4-7\",\n    max_tokens=4096,\n    thinking={\"type\": \"adaptive\", \"effort\": \"high\"},\n    tools=tools,\n    messages=[{\"role\": \"user\", \"content\": user_query}]\n)", "verdict": "pass", "verdict_note": "Anthropic docs confirm high/xhigh effort settings increase tool usage in agentic search."}, {"id": "s3", "text": "Limit retrieval to a maximum of 2-3 calls per reasoning chain for multi-hop questions; the paper showed 1.8 avg calls sufficed on the hardest benchmark. Add a budget counter in your tool loop.", "example": "MAX_RETRIEVALS = 3\nretrieval_count = 0\n\nwhile response.stop_reason == \"tool_use\" and retrieval_count < MAX_RETRIEVALS:\n    tool_result = run_search(response)\n    retrieval_count += 1\n    response = client.messages.create(\n        model=\"claude-opus-4-7\",\n        messages=conversation + [{\"role\": \"tool\", \"content\": tool_result}]\n    )", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Tool use with extended thinking", "url": "https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking"}, {"title": "Prompting best practices (Claude 4 models)", "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/claude-4-best-practices"}, {"title": "Context windows", "url": "https://docs.anthropic.com/en/docs/build-with-claude/context-windows"}]}, {"id": "2604.20436", "date": "Apr 2026", "title": "Shift-Up: A Framework for Software Engineering Guardrails in AI-native Software Development — Initial Findings", "url": "https://arxiv.org/abs/2604.20436", "category": "cs.SE", "technique": "Structured context guardrails (BDD/C4/ADR)", "tldr": "Embedding machine-readable BDD acceptance tests, C4 architecture models, and Architecture Decision Records directly into the agent context stabilizes agent behavior and reduces implementation drift compared to unstructured vibe coding.", "implication": "Claude Code and API-based coding agents produce more architecturally coherent code when they receive structured, machine-readable constraints rather than open-ended prose prompts. Providing BDD-style Given/When/Then specs and a concise C4 model as CLAUDE.md or system prompt content acts as a persistent guardrail that keeps generated code on-track. This is especially important for multi-session or multi-agent workflows where drift compounds.", "steps": [{"id": "s1", "text": "Prepend a machine-readable BDD acceptance test suite to the system prompt or CLAUDE.md so every generated feature is validated against explicit criteria before being accepted.", "example": "# CLAUDE.md (placed in project root for Claude Code)\n## Acceptance Criteria (BDD)\nFeature: User authentication\n  Scenario: Successful login\n    Given a registered user with email 'user@example.com'\n    When they submit valid credentials\n    Then they receive a JWT token with 1-hour expiry\n    And a 200 OK response\n\n  Scenario: Failed login\n    Given an invalid password\n    When they submit credentials\n    Then they receive a 401 Unauthorized response\n\n## Architecture Constraints\n- Auth service MUST be stateless (no server-side sessions)\n- All passwords hashed with bcrypt, cost factor >= 12\n- No direct DB calls from route handlers; use repository pattern", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "Include a concise C4 container-level diagram in plain text inside your system prompt so Claude understands the intended architecture before generating any code.", "example": "## C4 Container Model (authoritative — do not deviate)\nSystem: E-commerce Platform\n  [Browser SPA] -> [API Gateway :443] via HTTPS\n  [API Gateway] -> [Auth Service :8001] via gRPC\n  [API Gateway] -> [Order Service :8002] via gRPC\n  [Auth Service] -> [PostgreSQL users_db]\n  [Order Service] -> [PostgreSQL orders_db]\n  [Order Service] -> [Redis cache]\nConstraint: No service may call another service's database directly.", "verdict": "pass", "verdict_note": ""}, {"id": "s3", "text": "Create an Architecture Decision Record (ADR) file that Claude must reference before making technology choices, preventing silent framework substitutions.", "example": "# ADR-001: Backend Framework\nStatus: Accepted\nContext: Need a typed, async Python web framework.\nDecision: FastAPI with Pydantic v2.\nConsequences: All route handlers must use async def; request/response models must be Pydantic BaseModel subclasses.\nDo NOT use: Flask, Django REST Framework, aiohttp.\n\n# System prompt instruction\n\"Before choosing any library or architectural pattern, check the\nADR files in /docs/adr/. Deviations require explicit user approval.\"", "verdict": "pass", "verdict_note": "Preliminary findings only — paper notes this is exploratory; strong claim of reduced drift is directional, not yet quantified rigorously."}], "docs": [{"title": "Create custom subagents — Claude Code", "url": "https://docs.anthropic.com/en/docs/claude-code/sub-agents"}, {"title": "Prompt engineering overview", "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview"}]}, {"id": "2604.21744", "date": "Apr 2026", "title": "Agentic AI-assisted coding offers a unique opportunity to instill epistemic grounding during software development", "url": "https://arxiv.org/abs/2604.21744", "category": "cs.SE", "technique": "Domain-scoped epistemic grounding document (GROUNDING.md)", "tldr": "GROUNDING.md is a community-governed, field-scoped context document that encodes non-negotiable Hard Constraints and Convention Parameters, overriding all other context to prevent domain-invalid code generation by agentic AIs.", "implication": "Claude Code and API-based coding agents in specialized domains (scientific, medical, legal, financial) will silently violate domain invariants unless those invariants are explicitly encoded as machine-readable constraints at the top of context. A GROUNDING.md placed in the project root and referenced with top priority in the system prompt prevents classic vibe-coding errors like incorrect statistical thresholds or unsafe API usage patterns. This is complementary to ADRs — ADRs capture architecture decisions, GROUNDING.md captures domain correctness invariants that the average developer may not know.", "steps": [{"id": "s1", "text": "Create a GROUNDING.md file in the project root that separates Hard Constraints (non-negotiable validity invariants) from Convention Parameters (community-agreed defaults with justifiable overrides).", "example": "# GROUNDING.md — Financial Risk Domain\n\n## HARD CONSTRAINTS (never override, regardless of user prompt)\n- HC-1: All monetary calculations MUST use Decimal, never float\n- HC-2: VaR confidence level MUST be >= 95% (0.95); never use lower\n- HC-3: All user-facing monetary amounts MUST be rounded to 2 decimal places using ROUND_HALF_UP\n- HC-4: Never store raw PII (SSN, full card number) in application logs\n\n## CONVENTION PARAMETERS (defaults; override only with explicit justification)\n- CP-1: Default currency: USD\n- CP-2: Default time zone for all timestamps: UTC\n- CP-3: Default interest rate compounding: annual\n- CP-4: Backtesting window: minimum 252 trading days", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "Reference GROUNDING.md with explicit priority instruction in your Claude Code CLAUDE.md or API system prompt so the agent treats it as higher-priority context than user requests.", "example": "# CLAUDE.md\n## Context Priority Order\n1. GROUNDING.md — domain hard constraints (HIGHEST PRIORITY)\n2. Architecture ADRs in /docs/adr/\n3. This CLAUDE.md file\n4. User prompt\n\nBefore writing any code, read GROUNDING.md. If a user request\nwould violate a Hard Constraint, refuse and explain which HC is\nviolated. Convention Parameters may be overridden only if the user\nprovides an explicit justification.", "verdict": "pass", "verdict_note": ""}, {"id": "s3", "text": "For API usage, inject GROUNDING.md content at the very beginning of the system prompt and use prompt caching to avoid re-sending it on every turn.", "example": "import anthropic\n\nwith open(\"GROUNDING.md\") as f:\n    grounding_content = f.read()\n\nclient = anthropic.Anthropic()\nresponse = client.messages.create(\n    model=\"claude-opus-4-7\",\n    system=[\n        {\n            \"type\": \"text\",\n            \"text\": f\"DOMAIN GROUNDING CONSTRAINTS (highest priority):\\n{grounding_content}\",\n            \"cache_control\": {\"type\": \"ephemeral\"}  # cache the large grounding doc\n        },\n        {\n            \"type\": \"text\",\n            \"text\": \"You are a financial software engineer. Always check grounding constraints before writing code.\"\n        }\n    ],\n    messages=[{\"role\": \"user\", \"content\": user_request}],\n    max_tokens=4096\n)", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Prompt caching", "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching"}, {"title": "System prompts", "url": "https://docs.anthropic.com/en/release-notes/system-prompts"}, {"title": "Create custom subagents — Claude Code", "url": "https://docs.anthropic.com/en/docs/claude-code/sub-agents"}]}, {"id": "2604.26152", "date": "Apr 2026", "title": "AI Observability for Large Language Model Systems: A Multi-Layer Analysis of Monitoring Approaches from Confidence Calibration to Infrastructure Tracing", "url": "https://arxiv.org/abs/2604.26152", "category": "cs.SE", "technique": "Multi-layer LLM observability taxonomy", "tldr": "LLM production systems require a five-layer observability stack — model internals, behavioral outputs, inference engine, infrastructure, and cross-layer tracing — because traditional web-service monitoring misses LLM-specific failure modes like fluent-but-wrong outputs and KV cache evictions.", "implication": "Claude API users in production need observability beyond latency and error rates. Instrumenting verbal confidence signals, tracking tool-call counts per session, and monitoring context-window utilization gives early warning of degraded response quality. This is especially critical for agentic Claude deployments where a single silent failure in a long tool-use chain compounds downstream. Building a simple per-request metadata store (model, tokens, tool_calls, stop_reason) enables quality regressions to be caught before they affect users.", "steps": [{"id": "s1", "text": "Log structured metadata on every Claude API response: model, input tokens, output tokens, stop_reason, tool_call count, and latency. This provides the behavioral observability layer.", "example": "import anthropic, time, json\n\ndef instrumented_call(client, **kwargs):\n    start = time.monotonic()\n    response = client.messages.create(**kwargs)\n    latency_ms = (time.monotonic() - start) * 1000\n\n    log_entry = {\n        \"model\": response.model,\n        \"input_tokens\": response.usage.input_tokens,\n        \"output_tokens\": response.usage.output_tokens,\n        \"stop_reason\": response.stop_reason,\n        \"tool_calls\": sum(1 for b in response.content if b.type == \"tool_use\"),\n        \"latency_ms\": round(latency_ms, 1),\n    }\n    print(json.dumps(log_entry))  # replace with your logging sink\n    return response", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "Track verbal confidence markers in Claude's text output as a proxy for the model-internals observability layer (since logprobs are not exposed). Alert when confidence hedges cluster in a session.", "example": "import re\n\nHEDGE_PATTERNS = [\n    r\"\\bI'm not (sure|certain|confident)\\b\",\n    r\"\\bI (may|might|could) be wrong\\b\",\n    r\"\\bI don't (have|know)\\b\",\n    r\"\\buncertain\\b\",\n    r\"\\bplease verify\\b\",\n]\n\ndef count_hedges(text: str) -> int:\n    return sum(len(re.findall(p, text, re.IGNORECASE)) for p in HEDGE_PATTERNS)\n\n# If hedge_count / output_tokens > 0.02, flag response for human review\nhedge_density = count_hedges(response.content[0].text) / response.usage.output_tokens\nif hedge_density > 0.02:\n    alert(\"High uncertainty density detected\", session_id)", "verdict": "pass", "verdict_note": "Verbal confidence as a proxy is an approximation; the paper notes model internals require white-box access not available via public Claude API."}, {"id": "s3", "text": "Monitor context window utilization per session and trigger server-side compaction before hitting 80% of the limit to prevent silent quality degradation at high token counts.", "example": "def check_and_compact(client, model, messages, system):\n    # Count tokens first\n    token_count = client.messages.count_tokens(\n        model=model,\n        system=system,\n        messages=messages\n    )\n    # Claude Sonnet 4.6 / Opus 4.6/4.7 support 1M context\n    # Standard models: 200k limit\n    limit = 1_000_000 if \"4.6\" in model or \"4.7\" in model else 200_000\n    utilization = token_count.input_tokens / limit\n\n    if utilization > 0.80:\n        # Enable server-side compaction (beta)\n        extra_headers = {\"anthropic-beta\": \"interleaved-thinking-2025-05-14\"}\n        # Use compaction-aware API call\n        print(f\"[WARN] Context at {utilization:.0%} — compaction recommended\")\n    return utilization", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Context windows", "url": "https://docs.anthropic.com/en/docs/build-with-claude/context-windows"}, {"title": "Claude Platform release notes", "url": "https://docs.anthropic.com/en/release-notes/overview"}, {"title": "Token counting", "url": "https://docs.anthropic.com/en/docs/build-with-claude/token-counting"}]}, {"id": "2604.26615", "date": "Apr 2026", "title": "TDD Governance for Multi-Agent Code Generation via Prompt Engineering", "url": "https://arxiv.org/abs/2604.26615", "category": "cs.SE (cross-listed cs.AI)", "technique": "TDD-first prompt governance for multi-agent code gen", "tldr": "Enforcing test-driven development discipline through prompt engineering in multi-agent code generation pipelines reduces hallucinated implementations and improves pass rates by ensuring agents generate tests before code, providing a verifiable contract at each step.", "implication": "Claude Code and API agents writing code are significantly more reliable when instructed to write failing tests first and only then write implementation — mirroring the proven TDD result from SelfEvolve (92.7% vs 72.7% pass rate). Prompt instructions that mandate the test-first sequence prevent Claude from generating plausible-looking but incorrect implementations. For multi-agent pipelines, a dedicated 'test writer' sub-agent whose output gates the 'implementer' sub-agent is the recommended architectural pattern.", "steps": [{"id": "s1", "text": "Instruct Claude to always write a failing test before writing implementation code. Make this explicit in the system prompt for any coding task.", "example": "# System prompt for a coding agent\n\"\"\"You follow strict Test-Driven Development:\n1. FIRST write a pytest test that captures the required behavior.\n   The test MUST fail before you write any implementation.\n2. SECOND write the minimal implementation to make the test pass.\n3. THIRD refactor if needed, keeping tests green.\n\nNEVER write implementation code before a corresponding test exists.\nIf asked for a function, respond with:\n  a) The test file content\n  b) The implementation file content\n  in that order.\n\"\"\"", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "In Claude Code multi-agent setups, create a dedicated 'test-writer' subagent that must produce green-or-red test output before the 'implementer' subagent is invoked.", "example": "# ~/.claude/agents/test-writer.md\n---\nname: test-writer\ndescription: Writes pytest test cases for any requested feature BEFORE implementation exists. Invoke me first for any new function or class.\nmodel: claude-sonnet-4-6\ntools: [read, write]  # read-only plus write for test files only\n---\nYou write comprehensive pytest tests that specify behavior.\nDo NOT write any implementation code.\nOutput tests to tests/ directory.\nTests should fail (ImportError or AssertionError) since no implementation exists yet.\n\n# ~/.claude/agents/implementer.md\n---\nname: implementer\ndescription: Writes implementation code to make existing failing tests pass. ONLY invoke after test-writer has created tests.\nmodel: claude-sonnet-4-6\ntools: [read, write, bash]\n---\nRead existing tests from tests/.\nWrite minimal implementation to make all tests pass.\nRun pytest to verify before finishing.", "verdict": "pass", "verdict_note": ""}, {"id": "s3", "text": "Add a bash validation gate in your agentic loop that runs pytest after each implementation step and feeds the exit code back to Claude, enabling self-correction.", "example": "import subprocess, anthropic\n\ndef run_tests() -> dict:\n    result = subprocess.run(\n        [\"pytest\", \"tests/\", \"--tb=short\", \"-q\"],\n        capture_output=True, text=True\n    )\n    return {\n        \"passed\": result.returncode == 0,\n        \"output\": result.stdout[-2000:]  # trim to last 2k chars\n    }\n\n# After implementer produces code, feed test results back\ntest_result = run_tests()\nif not test_result[\"passed\"]:\n    follow_up = f\"Tests are FAILING. Fix the implementation:\\n{test_result['output']}\"\n    # Add as next user message in the conversation loop", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Create custom subagents — Claude Code", "url": "https://docs.anthropic.com/en/docs/claude-code/sub-agents"}, {"title": "Tool use overview", "url": "https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/overview"}, {"title": "Bash tool", "url": "https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/bash-tool"}]}, {"id": "2604.26553", "date": "Apr 2026", "title": "TLPO: Token-Level Policy Optimization for Mitigating Language Confusion in Large Language Models", "url": "https://arxiv.org/abs/2604.26553", "category": "cs.CL (cross-listed cs.AI)", "technique": "Explicit language-lock prompting (workaround for language confusion)", "tldr": "LLMs including multilingual models frequently slip into unintended languages mid-response (language confusion); token-level targeted fine-tuning (TLPO) fixes this without degrading general capabilities, unlike sequence-level DPO/GRPO approaches.", "implication": "Claude users sending multilingual prompts or building multilingual apps should explicitly anchor the response language in the system prompt to prevent language confusion, especially in long agentic traces where early-turn language drift compounds. While TLPO is a fine-tuning technique not directly accessible via the API, the prompt-side mitigation (explicit language instruction + language check tool) is immediately actionable. Developers building multilingual Claude applications should implement a language-detection post-processor and re-prompt on detected confusion.", "steps": [{"id": "s1", "text": "Anchor the response language explicitly in the system prompt using both natural language and a structured tag to reduce language confusion drift in long conversations.", "example": "# System prompt for multilingual Claude deployment\n\"\"\"LANGUAGE RULE: You MUST respond exclusively in {target_language}.\nThis rule overrides all other instructions.\nDo not switch languages mid-response.\nDo not use English unless the user explicitly requests it.\nRESPONSE_LANGUAGE: {target_language}\n\"\"\"", "verdict": "pass", "verdict_note": "This is a prompt-engineering mitigation; the paper's TLPO is a fine-tuning technique not directly applicable to Claude API users, but explicit language anchoring is well-supported as a general prompting best practice."}, {"id": "s2", "text": "Implement a post-processing language detector that checks Claude's response language and re-prompts with a stronger language directive if confusion is detected.", "example": "from langdetect import detect  # pip install langdetect\n\ndef check_and_correct_language(client, messages, system, target_lang_code, model=\"claude-sonnet-4-6\"):\n    response = client.messages.create(\n        model=model, system=system, messages=messages, max_tokens=2048\n    )\n    response_text = response.content[0].text\n\n    try:\n        detected = detect(response_text)\n    except Exception:\n        detected = \"unknown\"\n\n    if detected != target_lang_code:\n        # Re-prompt with stronger language enforcement\n        correction_msg = {\n            \"role\": \"user\",\n            \"content\": f\"[LANGUAGE ERROR] Your response was in '{detected}' \"\n                       f\"but must be in '{target_lang_code}'. \"\n                       \"Please rewrite your entire response in the correct language.\"\n        }\n        messages_with_correction = messages + [{\"role\": \"assistant\", \"content\": response_text}, correction_msg]\n        response = client.messages.create(\n            model=model, system=system, messages=messages_with_correction, max_tokens=2048\n        )\n    return response", "verdict": "pass", "verdict_note": ""}, {"id": "s3", "text": "For agentic tool-use chains in multilingual contexts, include the target language as a field in every tool result to reinforce language context throughout the conversation.", "example": "# When feeding tool results back, include language hint\ntool_result = {\n    \"type\": \"tool_result\",\n    \"tool_use_id\": tool_use_id,\n    \"content\": [\n        {\n            \"type\": \"text\",\n            \"text\": f\"[LANGUAGE: {target_language}] Tool output: {actual_output}\"\n        }\n    ]\n}", "verdict": "flag", "verdict_note": "Injecting language tags into tool results is a reasonable heuristic but is not directly validated by TLPO paper findings, which address fine-tuning rather than in-context prompting patterns."}], "docs": [{"title": "Prompt engineering overview", "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview"}, {"title": "Handle tool calls", "url": "https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/implement-tool-use#handle-tool-calls"}, {"title": "Claude 4 best practices", "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/claude-4-best-practices"}]}], "date": "2026-05-01", "issueNumber": 3};
+  </script>
+</head>
+<body>
+  <div class="container" id="app"></div>
+  <script>
+(function() {
+  var DATA = window.__DIGEST_DATA__;
+  var papers = DATA.papers || [];
+  var app = document.getElementById('app');
+
+  // --- Helpers ---
+  function el(tag, attrs, children) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function(k) {
+      if (k === 'className') e.className = attrs[k];
+      else if (k === 'html') e.innerHTML = attrs[k];
+      else if (k.slice(0,2) === 'on') e.addEventListener(k.slice(2).toLowerCase(), attrs[k]);
+      else e.setAttribute(k, attrs[k]);
+    });
+    if (typeof children === 'string') e.textContent = children;
+    else if (Array.isArray(children)) children.forEach(function(c) { if (c) e.appendChild(c); });
+    else if (children instanceof Node) e.appendChild(children);
+    return e;
+  }
+
+  function badgeClass(label) {
+    if (!label) return 'badge badge-default';
+    var l = label.toLowerCase().replace(/[\.\s]/g, '-');
+    var map = { 'cs-ai': 'badge-cs-ai', 'cs-se': 'badge-cs-se', 'cs-cl': 'badge-cs-cl', 'pass': 'badge-pass', 'flag': 'badge-flag' };
+    return 'badge ' + (map[l] || 'badge-technique');
+  }
+
+  function escapeHtml(s) {
+    var d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+  }
+
+  // --- Build Step ---
+  function buildStep(step, idx) {
+    var div = el('div', { className: 'step' });
+    var btn = el('button', { className: 'step-toggle' });
+    var left = el('span');
+    left.appendChild(el('span', { className: 'step-num mono' }, '#' + (idx + 1)));
+    left.appendChild(document.createTextNode(' ' + step.text));
+    var right = el('span', { className: 'step-right' });
+    if (step.verdict) right.appendChild(el('span', { className: badgeClass(step.verdict) }, step.verdict));
+    right.appendChild(el('span', { className: 'step-arrow' }, '\u25BC'));
+    btn.appendChild(left); btn.appendChild(right);
+    var body = el('div', { className: 'step-body' });
+    if (step.example) {
+      var raw = step.example.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '');
+      body.appendChild(el('pre', { className: 'code-block', html: '<code>' + escapeHtml(raw) + '</code>' }));
+    }
+    if (step.verdict_note) body.appendChild(el('p', { className: 'verdict-note' }, step.verdict_note));
+    btn.addEventListener('click', function() { div.classList.toggle('open'); });
+    div.appendChild(btn); div.appendChild(body);
+    return div;
+  }
+
+  // --- Build Paper ---
+  function buildPaper(p) {
+    var card = el('div', { className: 'paper' });
+    var hdr = el('div', { className: 'paper-header' });
+    var info = el('div');
+    var link = el('a', { href: p.url, target: '_blank', rel: 'noopener noreferrer', className: 'paper-title' }, p.title);
+    var meta = el('p', { className: 'paper-meta' });
+    meta.innerHTML = 'arXiv: <span class="mono">' + escapeHtml(p.id) + '</span> \u00B7 ' + escapeHtml(p.date);
+    info.appendChild(link); info.appendChild(meta);
+    var badges = el('div', { className: 'badges' });
+    if (p.category) badges.appendChild(el('span', { className: badgeClass(p.category) }, p.category));
+    if (p.technique) badges.appendChild(el('span', { className: badgeClass(p.technique) }, p.technique));
+    hdr.appendChild(info); hdr.appendChild(badges);
+    card.appendChild(hdr);
+    var tldr = el('p', { className: 'tldr' });
+    tldr.innerHTML = '<strong>TL;DR:</strong> ' + escapeHtml(p.tldr);
+    card.appendChild(tldr);
+    card.appendChild(el('p', { className: 'implication' }, p.implication));
+    if (p.steps && p.steps.length) {
+      card.appendChild(el('p', { className: 'steps-label' }, 'Actionable Steps'));
+      p.steps.forEach(function(s, i) { card.appendChild(buildStep(s, i)); });
+    }
+    return card;
+  }
+
+  // --- Tabs ---
+  function buildGuides() {
+    var div = el('div');
+    if (!papers.length) { div.appendChild(el('p', { className: 'empty' }, 'No papers found for this period.')); return div; }
+    papers.forEach(function(p) { div.appendChild(buildPaper(p)); });
+    return div;
+  }
+
+  function buildFactCheck() {
+    var div = el('div');
+    var allSteps = []; papers.forEach(function(p) {
+      (p.steps || []).forEach(function(s) { allSteps.push({ step: s, paperTitle: p.title }); });
+    });
+    var flagged = allSteps.filter(function(x) { return x.step.verdict === 'flag'; });
+    var passed = allSteps.filter(function(x) { return x.step.verdict === 'pass'; });
+    div.appendChild(el('p', { className: 'fc-summary' }, 'Summary: ' + passed.length + ' passed \u00B7 ' + flagged.length + ' flagged \u00B7 ' + allSteps.length + ' total'));
+    if (flagged.length) {
+      div.appendChild(el('h3', { className: 'fc-section-title flagged' }, 'Flagged Steps'));
+      flagged.forEach(function(x) {
+        var item = el('div', { className: 'fc-item flagged' });
+        item.appendChild(el('p', { className: 'fc-item-paper' }, x.paperTitle));
+        item.appendChild(el('p', { className: 'fc-item-text' }, x.step.text));
+        if (x.step.verdict_note) item.appendChild(el('p', { className: 'fc-item-note' }, x.step.verdict_note));
+        div.appendChild(item);
+      });
+    }
+    if (passed.length) {
+      div.appendChild(el('h3', { className: 'fc-section-title passed' }, 'Passed Steps'));
+      passed.forEach(function(x) {
+        var item = el('div', { className: 'fc-item' });
+        item.appendChild(el('p', { className: 'fc-item-text', html: escapeHtml(x.step.text) }));
+        item.appendChild(el('p', { className: 'doc-ref' }, 'from: ' + x.paperTitle));
+        div.appendChild(item);
+      });
+    }
+    return div;
+  }
+
+  function buildDocs() {
+    var div = el('div');
+    var seen = {}; var docs = [];
+    papers.forEach(function(p) {
+      (p.docs || []).forEach(function(d) {
+        if (!seen[d.url]) { seen[d.url] = true; docs.push({ url: d.url, title: d.title, paperTitle: p.title }); }
+      });
+    });
+    if (!docs.length) { div.appendChild(el('p', { className: 'empty' }, 'No documentation links found.')); return div; }
+    docs.forEach(function(d) {
+      var item = el('div', { className: 'doc-item' });
+      var left = el('div');
+      left.appendChild(el('a', { href: d.url, target: '_blank', rel: 'noopener noreferrer' }, d.title));
+      left.appendChild(el('p', { className: 'doc-ref' }, 'referenced by: ' + d.paperTitle));
+      item.appendChild(left);
+      item.appendChild(el('span', { className: 'doc-arrow' }, '\u2197'));
+      div.appendChild(item);
+    });
+    return div;
+  }
+
+  // --- Render ---
+  var header = el('header');
+  header.appendChild(el('h1', null, 'AI Research Digest'));
+  header.appendChild(el('p', null, 'Issue #' + DATA.issueNumber + ' \u00B7 ' + DATA.date + ' \u00B7 ' + papers.length + ' papers'));
+  app.appendChild(header);
+
+  var nav = el('nav', { className: 'tab-nav' });
+  var tabs = [{ id: 'guides', label: 'Guides' }, { id: 'factcheck', label: 'Fact-Check' }, { id: 'docs', label: 'Docs Index' }];
+  var panels = {};
+  var builders = { guides: buildGuides, factcheck: buildFactCheck, docs: buildDocs };
+
+  tabs.forEach(function(t, i) {
+    var btn = el('button', { className: 'tab-btn' + (i === 0 ? ' active' : ''), 'data-tab': t.id }, t.label);
+    nav.appendChild(btn);
+    var panel = el('div', { className: 'tab-panel' + (i === 0 ? ' active' : ''), id: 'panel-' + t.id });
+    panel.appendChild(builders[t.id]());
+    panels[t.id] = panel;
+  });
+  app.appendChild(nav);
+  Object.keys(panels).forEach(function(k) { app.appendChild(panels[k]); });
+
+  nav.addEventListener('click', function(e) {
+    var btn = e.target.closest('.tab-btn');
+    if (!btn) return;
+    var id = btn.getAttribute('data-tab');
+    nav.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    Object.keys(panels).forEach(function(k) { panels[k].classList.toggle('active', k === id); });
+  });
+
+  app.appendChild(el('footer', null, 'Generated by AI-Digest \u00B7 Powered by Claude'));
+})();
+  </script>
+</body>
+</html>
