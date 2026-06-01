@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Research Digest</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../digest.css" />
+  <script>
+    window.__DIGEST_DATA__ = {"papers": [{"id": "2605.14443", "date": "May 2026", "title": "Prompting Policies for Multi-step Reasoning and Tool-Use in Black-box LLMs with Iterative Distillation of Experience", "url": "https://arxiv.org/abs/2605.14443", "category": "cs.AI", "technique": "Iterative Prompt Policy Distillation", "tldr": "A meta-prompting framework that iteratively distills successful reasoning and tool-use trajectories into reusable prompt policies. Demonstrated gains from 55%→90% on logic tasks and 74%→91% on tool-use benchmarks (BBEH, Tau-bench).", "implication": "Claude users running multi-step agentic pipelines can dramatically improve reliability by curating and feeding back successful tool-use traces as few-shot examples in system prompts. This directly complements Claude's adaptive thinking and tool-use guidance. Rather than writing prompts once, treating prompts as evolving policies that incorporate past successes is the key leverage point.", "steps": [{"id": "s1", "text": "Bootstrap a prompt policy by collecting 3–5 successful tool-use trajectories from prior Claude runs, then prepend them as structured few-shot examples in your system prompt under an <examples> XML block.", "example": "SYSTEM:\nYou are a multi-step reasoning agent.\n\n<examples>\n<example>\n<user_query>Find the population of Tokyo and compare it to NYC.</user_query>\n<trajectory>\n1. Called search_tool(\"Tokyo population 2025\") → 13.96M\n2. Called search_tool(\"NYC population 2025\") → 8.34M\n3. Reasoned: Tokyo is ~1.67x larger.\n4. Answered with citations.\n</trajectory>\n</example>\n</examples>\n\nFor each new task, follow a similar step-by-step tool-use trajectory before answering.", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "After each successful agentic run, append the trajectory summary to a JSONL log file and periodically re-distill the top-k examples (by outcome quality) back into the system prompt. This implements iterative policy improvement without fine-tuning.", "example": "import json\n\ndef distill_policy(log_path: str, top_k: int = 5) -> str:\n    with open(log_path) as f:\n        trajectories = [json.loads(l) for l in f]\n    # Score by success flag and brevity\n    top = sorted(\n        [t for t in trajectories if t[\"success\"]],\n        key=lambda x: x[\"steps\"],\n    )[:top_k]\n    examples_xml = \"<examples>\\n\"\n    for t in top:\n        examples_xml += f\"<example>\\n<task>{t['task']}</task>\\n<trajectory>{t['trace']}</trajectory>\\n</example>\\n\"\n    examples_xml += \"</examples>\"\n    return examples_xml", "verdict": "pass", "verdict_note": ""}, {"id": "s3", "text": "For tool-use tasks, explicitly set Claude's tool_choice to 'auto' and add a system prompt nudge: 'Use tools to investigate before responding.' This steers Claude toward tool use consistent with the distilled policy.", "example": "import anthropic\nclient = anthropic.Anthropic()\nresponse = client.messages.create(\n    model=\"claude-opus-4-8\",\n    max_tokens=4096,\n    system=distilled_policy_prompt + \"\\n\\nUse the available tools to investigate before responding.\",\n    tools=[search_tool, calculator_tool],\n    tool_choice={\"type\": \"auto\"},\n    messages=[{\"role\": \"user\", \"content\": user_query}]\n)", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Tool use with Claude", "url": "https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/overview"}, {"title": "Claude 4 Prompting Best Practices", "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/claude-4-best-practices"}, {"title": "Define tools", "url": "https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/implement-tool-use"}]}, {"id": "2605.06445", "date": "May 2026", "title": "Constraint Decay: The Fragility of LLM Agents in Backend Code Generation", "url": "https://arxiv.org/abs/2605.06445", "category": "cs.SE", "technique": "Constraint-Explicit Prompting for Code Agents", "tldr": "LLM code agents exhibit 'constraint decay': as structural requirements (ORM patterns, DB schemas, framework conventions) accumulate across a codebase, agent compliance drops significantly. Functional correctness diverges from structural correctness.", "implication": "When using Claude for multi-file backend generation (e.g., via Claude Code), explicitly enumerating all structural constraints at the top of the prompt or CLAUDE.md prevents silent drift. Decomposing large generation tasks into smaller, constraint-bounded subtasks mitigates decay. This is especially critical for Claude Code users generating REST APIs or data-layer code.", "steps": [{"id": "s1", "text": "Create a CLAUDE.md (or system prompt preamble) that enumerates ALL structural constraints as a numbered checklist. Reference this checklist explicitly in every generation request to counteract constraint decay.", "example": "# CLAUDE.md\n## Structural Constraints — MUST follow for all generated code:\n1. All database access MUST go through the `Repository` pattern in `src/repositories/`\n2. All models MUST use SQLAlchemy ORM with the `Base` class from `src/models/base.py`\n3. All API endpoints MUST be registered via the `APIRouter` in `src/routers/`\n4. Foreign keys MUST use `ondelete=\"CASCADE\"` unless explicitly stated otherwise\n5. All service functions MUST be typed and have docstrings\n\n> Before generating any file, re-read the above constraints and confirm each one applies.", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "Decompose multi-file generation into sequential, single-responsibility tasks, each prefixed with the relevant subset of constraints. Avoid asking Claude to generate multiple tightly coupled files in one shot.", "example": "# Instead of: \"Generate the full user authentication module\"\n# Do this stepwise:\n\n# Step 1\n\"\"\"Generate ONLY `src/models/user.py` following constraints #2 and #4 from CLAUDE.md.\nDo not create any other files.\"\"\"\n\n# Step 2 (after reviewing step 1)\n\"\"\"Generate ONLY `src/repositories/user_repository.py` following constraint #1.\nImport the User model from the file we just created.\"\"\"\n\n# Step 3\n\"\"\"Generate ONLY `src/routers/auth.py` following constraint #3.\nDependencies: UserRepository from step 2.\"\"\"", "verdict": "pass", "verdict_note": ""}, {"id": "s3", "text": "After generation, use a static verifier pass (or ask Claude itself) to audit constraint adherence before committing. Prompt Claude to cross-check each generated file against the structural checklist.", "example": "PROMPT:\nReview the file `src/routers/auth.py` I just generated against our structural constraints:\n1. Does all DB access go through Repository pattern? (Y/N + line refs)\n2. Are all models using SQLAlchemy ORM with Base? (Y/N + line refs)\n3. Is the router registered via APIRouter? (Y/N + line refs)\nList any violations and suggest fixes.", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Claude Code overview", "url": "https://docs.anthropic.com/en/docs/claude-code/sub-agents"}, {"title": "Prompt engineering overview", "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview"}]}, {"id": "2605.05191", "date": "May 2026", "title": "LongSeeker: Elastic Context Orchestration for Long-Horizon Search Agents", "url": "https://arxiv.org/abs/2605.05191", "category": "cs.AI", "technique": "Context-ReAct: Elastic Context Orchestration", "tldr": "Introduces Context-ReAct, a paradigm where agents actively manage their working context using five meta-operations (Skip, Compress, Rollback, Snippet, Delete) rather than passively accumulating history. Achieves 61.5% on BrowseComp and 62.5% on other search benchmarks.", "implication": "Claude users building long-horizon agentic search loops should instruct Claude to actively prune, compress, and manage its working context rather than letting it grow unboundedly. This maps directly to Claude Code's context compaction features and Claude's prompt-cache guidance. Prompting Claude to apply compress/delete operations at decision points can prevent context bloat and costly errors.", "steps": [{"id": "s1", "text": "Add explicit context-management instructions to your agent system prompt, telling Claude to compress resolved sub-tasks and delete off-topic tool results before proceeding to the next action.", "example": "SYSTEM:\nYou are a long-horizon research agent. After every 3 tool calls:\n1. COMPRESS: Summarize resolved sub-questions into 1-2 sentences and replace the full tool output.\n2. DELETE: Remove any tool results that are no longer relevant to the current goal.\n3. SNIPPET: Extract and keep only the key facts (entities, numbers, dates) from large documents.\nAlways state your context management action before taking it.\nFormat: [CONTEXT-OP: COMPRESS | reason] <compressed summary>", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "Implement a Rollback operation in your agent loop scaffolding: if Claude reports it is stuck in a loop or contradicting earlier findings, reset the context to a prior checkpoint state.", "example": "class ContextManager:\n    def __init__(self):\n        self.checkpoints = []\n        self.current_messages = []\n\n    def checkpoint(self):\n        import copy\n        self.checkpoints.append(copy.deepcopy(self.current_messages))\n\n    def rollback(self, steps: int = 1):\n        \"\"\"Roll back to a prior context state.\"\"\"\n        if len(self.checkpoints) >= steps:\n            self.current_messages = self.checkpoints[-steps]\n            self.checkpoints = self.checkpoints[:-steps]\n            return True\n        return False\n\n    def compress_last_tool_result(self, summary: str):\n        \"\"\"Replace the last tool_result message with a compressed summary.\"\"\"\n        for i in reversed(range(len(self.current_messages))):\n            if self.current_messages[i].get(\"role\") == \"tool\":\n                self.current_messages[i][\"content\"] = f\"[COMPRESSED] {summary}\"\n                break", "verdict": "pass", "verdict_note": ""}, {"id": "s3", "text": "Use Claude's native context compaction (Claude Code) or manual summarization via the Messages API to periodically inject a compressed-context system message mid-conversation, replacing raw history.", "example": "# Mid-conversation context compaction via Messages API\ndef compact_context(client, messages: list, model: str) -> str:\n    \"\"\"Summarize conversation history into a compact state string.\"\"\"\n    summary_resp = client.messages.create(\n        model=model,\n        max_tokens=512,\n        system=\"Summarize the key facts, decisions, and remaining open questions from the conversation below in under 200 words.\",\n        messages=messages\n    )\n    return summary_resp.content[0].text\n\n# Then inject as a new system context before continuing\ncompact_state = compact_context(client, messages[:20], \"claude-haiku-4-5\")\nresume_messages = [\n    {\"role\": \"user\", \"content\": f\"[CONTEXT SUMMARY]\\n{compact_state}\\n\\nContinue with the next step.\"},\n]", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Context windows & compaction", "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview"}, {"title": "Claude 4 best practices — agentic tool use", "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/claude-4-best-practices"}, {"title": "Create custom subagents (Claude Code)", "url": "https://docs.anthropic.com/en/docs/claude-code/sub-agents"}]}, {"id": "2605.03534", "date": "May 2026", "title": "SURE-RAG: Sufficiency and Uncertainty-Aware Evidence Verification for Selective Retrieval-Augmented Generation", "url": "https://arxiv.org/abs/2605.03534", "category": "cs.CL", "technique": "Evidence Sufficiency Verification for RAG", "tldr": "SURE-RAG introduces a three-way evidence classification (Supported / Refuted / Insufficient) at the answer level, not the passage level. The system abstains from answering unless evidence is positively Supported, preventing hallucinations from topically-relevant-but-logically-insufficient retrieved passages.", "implication": "Claude users building RAG pipelines should add an explicit evidence-sufficiency check step before Claude generates a final answer. Prompting Claude to classify retrieved context as Supported/Refuted/Insufficient—and to abstain if Insufficient—directly reduces hallucination on multi-hop questions. This is actionable without any infrastructure changes.", "steps": [{"id": "s1", "text": "Add a two-turn RAG pattern: in the first turn, ask Claude to classify whether the retrieved context sufficiently supports, refutes, or is insufficient to answer the question. Only proceed to answer generation if the verdict is 'Supported'.", "example": "# Turn 1 — Evidence Sufficiency Check\ncheck_prompt = \"\"\"\nYou are an evidence verifier. Given the question and retrieved passages below, output ONLY one of:\n- SUPPORTED: The passages together provide enough information to answer the question with citations.\n- REFUTED: The passages contradict the likely answer.\n- INSUFFICIENT: Key information is missing or the hops needed to reach an answer are incomplete.\n\nDo NOT answer the question yet.\n\nQuestion: {question}\n\nRetrieved Passages:\n{passages}\n\nVerdict:\"\"\"\n\nverdict = claude.messages.create(\n    model=\"claude-haiku-4-5\",\n    max_tokens=10,\n    messages=[{\"role\": \"user\", \"content\": check_prompt.format(\n        question=q, passages=ctx\n    )}]\n).content[0].text.strip()\n\n# Turn 2 — Conditional Answer Generation\nif verdict == \"SUPPORTED\":\n    answer = claude.messages.create(...).content[0].text\nelif verdict == \"INSUFFICIENT\":\n    # Trigger re-retrieval with expanded query\n    retrieve_more(q)\nelse:\n    answer = \"The retrieved evidence contradicts available information. Please verify the source.\"", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "For multi-hop RAG, instruct Claude to enumerate the evidence 'hops' required to reach the answer and flag which hops are still missing, rather than attempting a direct answer over incomplete context.", "example": "SYSTEM:\nWhen answering questions that require multiple pieces of evidence (multi-hop), first:\n1. List the reasoning hops required: e.g., [A→B, B→C, C→answer]\n2. For each hop, cite the passage that covers it (or mark as MISSING)\n3. If ANY hop is MISSING, output: \"INSUFFICIENT EVIDENCE — missing: [hop description]\" and stop.\n4. Only if all hops are covered, produce the final answer with inline citations.\n\nExample:\nQuestion: Who founded the company that acquired DeepMind?\nHops needed:\n- [1] Who founded Google? → Passage 3: Larry Page and Sergey Brin\n- [2] Did Google acquire DeepMind? → Passage 1: Yes, in 2014\nAll hops covered → Answer: Larry Page and Sergey Brin (founders of Google, which acquired DeepMind in 2014).", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Tool use with Claude — web search", "url": "https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/overview"}, {"title": "Prompt engineering overview", "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview"}]}, {"id": "2603.01896", "date": "Mar 2026", "title": "Agentic Code Reasoning", "url": "https://arxiv.org/abs/2603.01896", "category": "cs.SE", "technique": "Semi-Formal Reasoning for Code Agents", "tldr": "Semi-formal reasoning—requiring agents to construct explicit premises, trace execution paths, and derive formal conclusions—improves code reasoning accuracy by 10.8pp on code QA (87% vs 76% for single-shot) and 5–12pp on fault localization, without executing the code.", "implication": "When asking Claude to reason about code (code review, bug finding, patch equivalence), structuring the prompt to require explicit premise-listing, execution tracing, and formal conclusions dramatically improves accuracy. This is directly applicable to Claude Code and API-based code review pipelines.", "steps": [{"id": "s1", "text": "For code review or bug analysis tasks, add a 'semi-formal reasoning' scaffold to your prompt that forces Claude to (1) state premises, (2) trace execution, and (3) derive a formal verdict before giving a free-text explanation.", "example": "SYSTEM:\nWhen analyzing code, use semi-formal reasoning:\n\n## Step 1 — State Premises\nList all known facts about the code: variable types, invariants, pre/post-conditions.\nFormat: P1: <fact>, P2: <fact>, ...\n\n## Step 2 — Trace Execution\nTrace the relevant execution path step by step, citing line numbers.\nFormat: L{n}: <state after this line>\n\n## Step 3 — Derive Conclusion\nFrom premises + trace, derive a formal verdict:\n- BUG FOUND: <description> at line <n> — violates <premise>\n- NO BUG: All premises hold throughout execution.\n- UNCERTAIN: Insufficient information to determine — missing: <what>\n\nOnly then provide a plain-language explanation.\n\n---\nAnalyze this function for null-pointer bugs:\n```python\ndef get_user_name(user_id: int) -> str:\n    user = db.query(User).filter_by(id=user_id).first()\n    return user.name\n```", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "For patch equivalence verification (e.g., confirming a refactored function behaves identically), instruct Claude to prove equivalence by tracing both versions against the same set of derived premises.", "example": "PROMPT:\nProve or disprove that patch_A and patch_B are semantically equivalent.\n\nUse semi-formal reasoning:\n1. State the shared premises (input constraints, expected output).\n2. Trace patch_A's execution for edge cases: empty input, max input, null input.\n3. Trace patch_B's execution for the same edge cases.\n4. Verdict: EQUIVALENT if all traces match, DIVERGES AT: <case> if they differ.\n\npatch_A:\n```python\ndef clamp(x, lo, hi): return max(lo, min(hi, x))\n```\npatch_B:\n```python\ndef clamp(x, lo, hi):\n    if x < lo: return lo\n    if x > hi: return hi\n    return x\n```", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Claude Code overview", "url": "https://docs.anthropic.com/en/docs/claude-code/sub-agents"}, {"title": "Claude 4 best practices — thinking and reasoning", "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/claude-4-best-practices"}]}, {"id": "2605.21850", "date": "May 2026", "title": "ACC: Compiling Agent Trajectories for Long-Context Training", "url": "https://arxiv.org/abs/2605.21850", "category": "cs.AI", "technique": "Agent Context Compilation (ACC) for Context-Aware Prompting", "tldr": "Agent trajectories (tool calls + observations spread over many turns) contain scattered evidence that standard SFT ignores. ACC converts these trajectories into long-context QA pairs, enabling models to answer directly from integrated context. The insight: tool responses are evidence, not throwaway scaffolding.", "implication": "Claude users running multi-turn agentic pipelines should structure tool results as explicit evidence in the context window, not just opaque responses. At the end of a long agent run, prompt Claude to synthesize a 'compiled context'—a coherent summary integrating all tool observations—before generating the final answer. This also informs how to structure Claude Code subagent hand-offs.", "steps": [{"id": "s1", "text": "At the end of a multi-turn agentic loop, inject a 'context compilation' step: ask Claude to produce a single, coherent evidence document from all tool results before generating the final answer.", "example": "# After N tool-use turns, inject a compilation step:\ncompile_prompt = \"\"\"\nBefore giving your final answer, compile all the evidence gathered so far into a structured Evidence Document:\n\n## Evidence Document\n### Key Facts Found:\n- [Fact 1 from tool call 2]: ...\n- [Fact 2 from tool call 5]: ...\n\n### Remaining Open Questions:\n- ...\n\n### Evidence Gaps:\n- ...\n\nNow answer the original question: {original_question}\nCite evidence by [Fact N] references.\n\"\"\"\nmessages.append({\"role\": \"user\", \"content\": compile_prompt.format(\n    original_question=original_question\n)})", "verdict": "pass", "verdict_note": ""}, {"id": "s2", "text": "When designing Claude Code subagent hand-offs, have the subagent return a compiled evidence summary (not raw logs) to the main agent. This prevents the main context from being flooded with raw tool outputs.", "example": "# In your Claude Code subagent system prompt (YAML frontmatter):\n# ---\n# name: research-compiler\n# description: Runs web searches and returns a compiled evidence summary, not raw results.\n# ---\nSYSTEM:\nYou are a research compiler subagent. After completing all searches:\n1. Do NOT return raw search results.\n2. Return ONLY a structured Evidence Summary:\n   - Key Facts: bullet list of confirmed facts with source URLs\n   - Conflicting Information: any contradictions found\n   - Confidence: HIGH / MEDIUM / LOW\n   - Gaps: what could not be found\n\nThis summary will be passed to the main agent.", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Create custom subagents (Claude Code)", "url": "https://docs.anthropic.com/en/docs/claude-code/sub-agents"}, {"title": "Context windows & compaction", "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview"}, {"title": "Tool use with Claude", "url": "https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/overview"}]}, {"id": "2605.04495", "date": "May 2026", "title": "CAR: Query-Guided Confidence-Aware Reranking for Retrieval-Augmented Generation", "url": "https://arxiv.org/abs/2605.04495", "category": "cs.IR", "technique": "Confidence-Aware RAG Reranking", "tldr": "CAR reranks retrieved documents not by query-document relevance but by how much each document reduces the generator's uncertainty (confidence change). A relevant document can still introduce noise; a lower-ranked document may be more useful for generation. Training-free and plug-and-play.", "implication": "Claude users building RAG systems should reorder retrieved passages by generation utility, not semantic similarity. A simple proxy: ask Claude to score each passage by how much it changes its confidence in a candidate answer, then reorder. This is directly applicable to Claude's web search tool and custom retrieval pipelines.", "steps": [{"id": "s1", "text": "Before passing retrieved passages to Claude for final answer generation, run a lightweight confidence-scoring step: ask Claude to rate each passage by how much it changes its confidence in a preliminary answer. Reorder passages from highest to lowest confidence-change score.", "example": "def confidence_aware_rerank(client, question: str, passages: list[str], top_k: int = 3) -> list[str]:\n    \"\"\"Rerank passages by how much they change Claude's answer confidence.\"\"\"\n    # Get a preliminary answer without context\n    baseline = client.messages.create(\n        model=\"claude-haiku-4-5\",\n        max_tokens=50,\n        messages=[{\"role\": \"user\", \"content\": f\"Answer briefly (1 sentence): {question}\"}]\n    ).content[0].text\n\n    scores = []\n    for i, passage in enumerate(passages):\n        score_resp = client.messages.create(\n            model=\"claude-haiku-4-5\",\n            max_tokens=20,\n            messages=[{\"role\": \"user\", \"content\": f\"\"\"\nBaseline answer: \"{baseline}\"\nNew passage: \"{passage[:500]}\"\nOn a scale of 1-10, how much does this passage change or improve your confidence in the answer?\nRespond with ONLY a number.\"\"\"}]\n        )\n        try:\n            score = float(score_resp.content[0].text.strip())\n        except ValueError:\n            score = 0.0\n        scores.append((score, passage))\n\n    reranked = [p for _, p in sorted(scores, reverse=True)]\n    return reranked[:top_k]", "verdict": "pass", "verdict_note": "This is a practical approximation of CAR's confidence-change signal using Claude itself as the scorer. The paper uses generator logit changes; this prompt-based proxy is an approximation suitable for black-box API use."}, {"id": "s2", "text": "When using Claude's built-in web search tool, follow up each search with a relevance-vs-usefulness distinction: prompt Claude to flag passages it found topically relevant but logically unhelpful, so they can be deprioritized in the final synthesis.", "example": "SYSTEM:\nWhen synthesizing search results:\n1. For each retrieved passage, tag it as:\n   - [USEFUL]: Directly reduces uncertainty about the answer\n   - [TOPICAL]: Related to the topic but does not change the answer\n   - [NOISE]: Off-topic or contradictory without resolution\n2. Build your answer ONLY from [USEFUL] passages.\n3. Note if your answer would change if [TOPICAL] passages were excluded.", "verdict": "pass", "verdict_note": ""}], "docs": [{"title": "Web search tool", "url": "https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/overview"}, {"title": "Prompt engineering overview", "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview"}]}], "date": "2026-06-01", "issueNumber": 4};
+  </script>
+</head>
+<body>
+  <div class="container" id="app"></div>
+  <script>
+(function() {
+  var DATA = window.__DIGEST_DATA__;
+  var papers = DATA.papers || [];
+  var app = document.getElementById('app');
+
+  // --- Helpers ---
+  function el(tag, attrs, children) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function(k) {
+      if (k === 'className') e.className = attrs[k];
+      else if (k === 'html') e.innerHTML = attrs[k];
+      else if (k.slice(0,2) === 'on') e.addEventListener(k.slice(2).toLowerCase(), attrs[k]);
+      else e.setAttribute(k, attrs[k]);
+    });
+    if (typeof children === 'string') e.textContent = children;
+    else if (Array.isArray(children)) children.forEach(function(c) { if (c) e.appendChild(c); });
+    else if (children instanceof Node) e.appendChild(children);
+    return e;
+  }
+
+  function badgeClass(label) {
+    if (!label) return 'badge badge-default';
+    var l = label.toLowerCase().replace(/[\.\s]/g, '-');
+    var map = { 'cs-ai': 'badge-cs-ai', 'cs-se': 'badge-cs-se', 'cs-cl': 'badge-cs-cl', 'pass': 'badge-pass', 'flag': 'badge-flag' };
+    return 'badge ' + (map[l] || 'badge-technique');
+  }
+
+  function escapeHtml(s) {
+    var d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+  }
+
+  // --- Build Step ---
+  function buildStep(step, idx) {
+    var div = el('div', { className: 'step' });
+    var btn = el('button', { className: 'step-toggle' });
+    var left = el('span');
+    left.appendChild(el('span', { className: 'step-num mono' }, '#' + (idx + 1)));
+    left.appendChild(document.createTextNode(' ' + step.text));
+    var right = el('span', { className: 'step-right' });
+    if (step.verdict) right.appendChild(el('span', { className: badgeClass(step.verdict) }, step.verdict));
+    right.appendChild(el('span', { className: 'step-arrow' }, '\u25BC'));
+    btn.appendChild(left); btn.appendChild(right);
+    var body = el('div', { className: 'step-body' });
+    if (step.example) {
+      var raw = step.example.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '');
+      body.appendChild(el('pre', { className: 'code-block', html: '<code>' + escapeHtml(raw) + '</code>' }));
+    }
+    if (step.verdict_note) body.appendChild(el('p', { className: 'verdict-note' }, step.verdict_note));
+    btn.addEventListener('click', function() { div.classList.toggle('open'); });
+    div.appendChild(btn); div.appendChild(body);
+    return div;
+  }
+
+  // --- Build Paper ---
+  function buildPaper(p) {
+    var card = el('div', { className: 'paper' });
+    var hdr = el('div', { className: 'paper-header' });
+    var info = el('div');
+    var link = el('a', { href: p.url, target: '_blank', rel: 'noopener noreferrer', className: 'paper-title' }, p.title);
+    var meta = el('p', { className: 'paper-meta' });
+    meta.innerHTML = 'arXiv: <span class="mono">' + escapeHtml(p.id) + '</span> \u00B7 ' + escapeHtml(p.date);
+    info.appendChild(link); info.appendChild(meta);
+    var badges = el('div', { className: 'badges' });
+    if (p.category) badges.appendChild(el('span', { className: badgeClass(p.category) }, p.category));
+    if (p.technique) badges.appendChild(el('span', { className: badgeClass(p.technique) }, p.technique));
+    hdr.appendChild(info); hdr.appendChild(badges);
+    card.appendChild(hdr);
+    var tldr = el('p', { className: 'tldr' });
+    tldr.innerHTML = '<strong>TL;DR:</strong> ' + escapeHtml(p.tldr);
+    card.appendChild(tldr);
+    card.appendChild(el('p', { className: 'implication' }, p.implication));
+    if (p.steps && p.steps.length) {
+      card.appendChild(el('p', { className: 'steps-label' }, 'Actionable Steps'));
+      p.steps.forEach(function(s, i) { card.appendChild(buildStep(s, i)); });
+    }
+    return card;
+  }
+
+  // --- Tabs ---
+  function buildGuides() {
+    var div = el('div');
+    if (!papers.length) { div.appendChild(el('p', { className: 'empty' }, 'No papers found for this period.')); return div; }
+    papers.forEach(function(p) { div.appendChild(buildPaper(p)); });
+    return div;
+  }
+
+  function buildFactCheck() {
+    var div = el('div');
+    var allSteps = []; papers.forEach(function(p) {
+      (p.steps || []).forEach(function(s) { allSteps.push({ step: s, paperTitle: p.title }); });
+    });
+    var flagged = allSteps.filter(function(x) { return x.step.verdict === 'flag'; });
+    var passed = allSteps.filter(function(x) { return x.step.verdict === 'pass'; });
+    div.appendChild(el('p', { className: 'fc-summary' }, 'Summary: ' + passed.length + ' passed \u00B7 ' + flagged.length + ' flagged \u00B7 ' + allSteps.length + ' total'));
+    if (flagged.length) {
+      div.appendChild(el('h3', { className: 'fc-section-title flagged' }, 'Flagged Steps'));
+      flagged.forEach(function(x) {
+        var item = el('div', { className: 'fc-item flagged' });
+        item.appendChild(el('p', { className: 'fc-item-paper' }, x.paperTitle));
+        item.appendChild(el('p', { className: 'fc-item-text' }, x.step.text));
+        if (x.step.verdict_note) item.appendChild(el('p', { className: 'fc-item-note' }, x.step.verdict_note));
+        div.appendChild(item);
+      });
+    }
+    if (passed.length) {
+      div.appendChild(el('h3', { className: 'fc-section-title passed' }, 'Passed Steps'));
+      passed.forEach(function(x) {
+        var item = el('div', { className: 'fc-item' });
+        item.appendChild(el('p', { className: 'fc-item-text', html: escapeHtml(x.step.text) }));
+        item.appendChild(el('p', { className: 'doc-ref' }, 'from: ' + x.paperTitle));
+        div.appendChild(item);
+      });
+    }
+    return div;
+  }
+
+  function buildDocs() {
+    var div = el('div');
+    var seen = {}; var docs = [];
+    papers.forEach(function(p) {
+      (p.docs || []).forEach(function(d) {
+        if (!seen[d.url]) { seen[d.url] = true; docs.push({ url: d.url, title: d.title, paperTitle: p.title }); }
+      });
+    });
+    if (!docs.length) { div.appendChild(el('p', { className: 'empty' }, 'No documentation links found.')); return div; }
+    docs.forEach(function(d) {
+      var item = el('div', { className: 'doc-item' });
+      var left = el('div');
+      left.appendChild(el('a', { href: d.url, target: '_blank', rel: 'noopener noreferrer' }, d.title));
+      left.appendChild(el('p', { className: 'doc-ref' }, 'referenced by: ' + d.paperTitle));
+      item.appendChild(left);
+      item.appendChild(el('span', { className: 'doc-arrow' }, '\u2197'));
+      div.appendChild(item);
+    });
+    return div;
+  }
+
+  // --- Render ---
+  var header = el('header');
+  header.appendChild(el('h1', null, 'AI Research Digest'));
+  header.appendChild(el('p', null, 'Issue #' + DATA.issueNumber + ' \u00B7 ' + DATA.date + ' \u00B7 ' + papers.length + ' papers'));
+  app.appendChild(header);
+
+  var nav = el('nav', { className: 'tab-nav' });
+  var tabs = [{ id: 'guides', label: 'Guides' }, { id: 'factcheck', label: 'Fact-Check' }, { id: 'docs', label: 'Docs Index' }];
+  var panels = {};
+  var builders = { guides: buildGuides, factcheck: buildFactCheck, docs: buildDocs };
+
+  tabs.forEach(function(t, i) {
+    var btn = el('button', { className: 'tab-btn' + (i === 0 ? ' active' : ''), 'data-tab': t.id }, t.label);
+    nav.appendChild(btn);
+    var panel = el('div', { className: 'tab-panel' + (i === 0 ? ' active' : ''), id: 'panel-' + t.id });
+    panel.appendChild(builders[t.id]());
+    panels[t.id] = panel;
+  });
+  app.appendChild(nav);
+  Object.keys(panels).forEach(function(k) { app.appendChild(panels[k]); });
+
+  nav.addEventListener('click', function(e) {
+    var btn = e.target.closest('.tab-btn');
+    if (!btn) return;
+    var id = btn.getAttribute('data-tab');
+    nav.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    Object.keys(panels).forEach(function(k) { panels[k].classList.toggle('active', k === id); });
+  });
+
+  app.appendChild(el('footer', null, 'Generated by AI-Digest \u00B7 Powered by Claude'));
+})();
+  </script>
+</body>
+</html>
